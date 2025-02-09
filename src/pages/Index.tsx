@@ -129,17 +129,37 @@ const Index = () => {
         <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
           <h2 className="text-xl font-semibold mb-4">Estado de Agentes</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {agents.map((agent) => (
-              <div
-                key={agent.id}
-                className="p-4 border rounded-md flex items-center justify-between"
-              >
-                <span>{agent.name}</span>
-                <Badge variant={agent.available ? "default" : "secondary"}>
-                  {agent.available ? "Disponible" : "Ocupado"}
-                </Badge>
-              </div>
-            ))}
+            {agents.map((agent) => {
+              const activeTask = tasks.find(
+                (t) => t.assignedTo === agent.id && t.status === "active"
+              );
+              return (
+                <div
+                  key={agent.id}
+                  className="p-4 border rounded-md space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span>{agent.name}</span>
+                    <Badge variant={agent.available ? "default" : "secondary"}>
+                      {agent.available ? "Disponible" : "Ocupado"}
+                    </Badge>
+                  </div>
+                  {activeTask && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600">Tarea actual: {activeTask.description}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleCompleteTask(activeTask.id)}
+                        className="w-full"
+                      >
+                        Completar Tarea
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -158,28 +178,17 @@ const Index = () => {
                     Asignado a: {agents.find((a) => a.id === task.assignedTo)?.name}
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge
-                    variant={
-                      task.status === "completed"
-                        ? "default"
-                        : task.status === "active"
-                        ? "secondary"
-                        : "outline"
-                    }
-                  >
-                    {task.status}
-                  </Badge>
-                  {task.status === "active" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCompleteTask(task.id)}
-                    >
-                      Completar
-                    </Button>
-                  )}
-                </div>
+                <Badge
+                  variant={
+                    task.status === "completed"
+                      ? "default"
+                      : task.status === "active"
+                      ? "secondary"
+                      : "outline"
+                  }
+                >
+                  {task.status}
+                </Badge>
               </div>
             ))}
             {tasks.length === 0 && (
