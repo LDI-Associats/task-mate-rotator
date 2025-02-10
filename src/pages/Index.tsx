@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
-// Mock data for agents
-const AGENTS = [
-  { id: 1, name: "Juan Pérez", available: true },
-  { id: 2, name: "María García", available: true },
-  { id: 3, name: "Carlos López", available: true },
-];
+interface Agent {
+  id: number;
+  nombre: string;
+  entrada_laboral: string;
+  salida_laboral: string;
+  available: boolean;
+}
 
 interface Task {
   id: number;
@@ -23,51 +25,94 @@ const Index = () => {
   const [taskDescription, setTaskDescription] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
-  const [agents, setAgents] = useState(AGENTS);
+  const [agents, setAgents] = useState<Agent[]>([]);
 
-  // Cargar tareas desde Supabase al iniciar
+  // Cargar agentes y tareas desde Supabase al iniciar
   useEffect(() => {
-    loadTasks();
+    loadAgentsAndTasks();
   }, []);
 
-  const loadTasks = async () => {
+  const loadAgentsAndTasks = async () => {
     try {
-      const { data, error } = await supabase
+      // Cargar agentes
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('agentes')
+        .select('*');
+
+      if (agentsError) throw agentsError;
+
+      // Cargar tareas
+      const { data: tasksData, error: tasksError } = await supabase
         .from('tarea')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (tasksError) throw tasksError;
 
-      if (data) {
-        const formattedTasks: Task[] = data.map(task => ({
+      if (agentsData && tasksData) {
+        // Formatear agentes y establecer disponibilidad inicial
+        const formattedAgents: Agent[] = agentsData.map(agent => ({
+          id: agent.id,
+          nombre: agent.nombre || '',
+          entrada_laboral: agent.entrada_laboral || '',
+          salida_laboral: agent.salida_laboral || '',
+          available: true
+        }));
+
+        // Formatear tareas
+        const formattedTasks: Task[] = tasksData.map(task => ({
           id: task.id,
           description: task.tarea || '',
           assignedTo: task.agente ? parseInt(task.agente) : null,
           status: task.activo === '1' ? 'active' as const : 'completed' as const
         }));
-        setTasks(formattedTasks);
 
-        // Actualizar disponibilidad de agentes
-        const updatedAgents = [...AGENTS];
+        // Actualizar disponibilidad de agentes basado en tareas activas
         formattedTasks.forEach(task => {
           if (task.status === 'active' && task.assignedTo) {
-            const agentIndex = updatedAgents.findIndex(a => a.id === task.assignedTo);
+            const agentIndex = formattedAgents.findIndex(a => a.id === task.assignedTo);
             if (agentIndex !== -1) {
-              updatedAgents[agentIndex].available = false;
+              formattedAgents[agentIndex].available = false;
             }
           }
         });
-        setAgents(updatedAgents);
+
+        setAgents(formattedAgents);
+        setTasks(formattedTasks);
       }
     } catch (error) {
-      console.error('Error loading tasks:', error);
+      console.error('Error loading data:', error);
       toast({
         title: "Error",
-        description: "Error al cargar las tareas",
+        description: "Error al cargar los datos",
         variant: "destructive",
       });
     }
+  };
+
+  const isAgentInWorkingHours = (agent: Agent): boolean => {
+    const now = new Date();
+    const currentTime = now.toLocaleTimeString('en-US', { hour12: false });
+    
+    return currentTime >= agent.entrada_laboral && currentTime <= agent.salida_laboral;
+  };
+
+  const findNextAvailableAgent = (): number => {
+    let availableAgentIndex = -1;
+    let checkCount = 0;
+    
+    while (checkCount < agents.length) {
+      const indexToCheck = (currentAgentIndex + checkCount) % agents.length;
+      const agent = agents[indexToCheck];
+      
+      if (agent.available && isAgentInWorkingHours(agent)) {
+        availableAgentIndex = indexToCheck;
+        break;
+      }
+      checkCount++;
+    }
+    
+    return availableAgentIndex;
   };
 
   const handleCreateTask = async () => {
@@ -80,29 +125,18 @@ const Index = () => {
       return;
     }
 
-    // Find next available agent using rotation
-    let availableAgentIndex = -1;
-    let checkCount = 0;
-    while (checkCount < agents.length) {
-      const indexToCheck = (currentAgentIndex + checkCount) % agents.length;
-      if (agents[indexToCheck].available) {
-        availableAgentIndex = indexToCheck;
-        break;
-      }
-      checkCount++;
-    }
+    const availableAgentIndex = findNextAvailableAgent();
 
     if (availableAgentIndex === -1) {
       toast({
         title: "Error",
-        description: "No hay agentes disponibles en este momento",
+        description: "No hay agentes disponibles en horario laboral en este momento",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      // Create new task in Supabase
       const { data, error } = await supabase
         .from('tarea')
         .insert([
@@ -118,7 +152,6 @@ const Index = () => {
       if (error) throw error;
 
       if (data) {
-        // Create new task object
         const newTask: Task = {
           id: data.id,
           description: taskDescription,
@@ -126,7 +159,6 @@ const Index = () => {
           status: "active",
         };
 
-        // Update agents availability
         const updatedAgents = [...agents];
         updatedAgents[availableAgentIndex].available = false;
 
@@ -137,7 +169,7 @@ const Index = () => {
 
         toast({
           title: "Tarea creada",
-          description: `Tarea asignada a ${agents[availableAgentIndex].name}`,
+          description: `Tarea asignada a ${agents[availableAgentIndex].nombre}`,
         });
       }
     } catch (error) {
@@ -223,16 +255,22 @@ const Index = () => {
               const activeTask = tasks.find(
                 (t) => t.assignedTo === agent.id && t.status === "active"
               );
+              const isInWorkingHours = isAgentInWorkingHours(agent);
               return (
                 <div
                   key={agent.id}
                   className="p-4 border rounded-md space-y-3"
                 >
-                  <div className="flex items-center justify-between">
-                    <span>{agent.name}</span>
-                    <Badge variant={agent.available ? "default" : "secondary"}>
-                      {agent.available ? "Disponible" : "Ocupado"}
-                    </Badge>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span>{agent.nombre}</span>
+                      <Badge variant={agent.available && isInWorkingHours ? "default" : "secondary"}>
+                        {!isInWorkingHours ? "Fuera de horario" : agent.available ? "Disponible" : "Ocupado"}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <p>Horario: {agent.entrada_laboral} - {agent.salida_laboral}</p>
+                    </div>
                   </div>
                   {activeTask && (
                     <div className="space-y-2">
@@ -265,7 +303,7 @@ const Index = () => {
                 <div>
                   <p className="font-medium">{task.description}</p>
                   <p className="text-sm text-gray-500">
-                    Asignado a: {agents.find((a) => a.id === task.assignedTo)?.name}
+                    Asignado a: {agents.find((a) => a.id === task.assignedTo)?.nombre}
                   </p>
                 </div>
                 <Badge
