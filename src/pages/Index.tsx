@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,11 +40,11 @@ const Index = () => {
       if (error) throw error;
 
       if (data) {
-        const formattedTasks = data.map(task => ({
+        const formattedTasks: Task[] = data.map(task => ({
           id: task.id,
           description: task.tarea || '',
-          assignedTo: parseInt(task.agente || '0'),
-          status: task.activo === '1' ? 'active' : 'completed'
+          assignedTo: task.agente ? parseInt(task.agente) : null,
+          status: task.activo === '1' ? 'active' as const : 'completed' as const
         }));
         setTasks(formattedTasks);
 
