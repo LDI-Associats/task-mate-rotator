@@ -12,23 +12,29 @@ export type Database = {
       agentes: {
         Row: {
           created_at: string
+          entrada_horario_comida: string | null
           entrada_laboral: string | null
           id: number
           nombre: string | null
+          salida_horario_comida: string | null
           salida_laboral: string | null
         }
         Insert: {
           created_at?: string
+          entrada_horario_comida?: string | null
           entrada_laboral?: string | null
           id?: number
           nombre?: string | null
+          salida_horario_comida?: string | null
           salida_laboral?: string | null
         }
         Update: {
           created_at?: string
+          entrada_horario_comida?: string | null
           entrada_laboral?: string | null
           id?: number
           nombre?: string | null
+          salida_horario_comida?: string | null
           salida_laboral?: string | null
         }
         Relationships: []
