@@ -1,9 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Mock data for agents
 const AGENTS = [
@@ -25,7 +26,52 @@ const Index = () => {
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
   const [agents, setAgents] = useState(AGENTS);
 
-  const handleCreateTask = () => {
+  // Cargar tareas desde Supabase al iniciar
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
+  const loadTasks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tarea')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedTasks = data.map(task => ({
+          id: task.id,
+          description: task.tarea || '',
+          assignedTo: parseInt(task.agente || '0'),
+          status: task.activo === '1' ? 'active' : 'completed'
+        }));
+        setTasks(formattedTasks);
+
+        // Actualizar disponibilidad de agentes
+        const updatedAgents = [...AGENTS];
+        formattedTasks.forEach(task => {
+          if (task.status === 'active' && task.assignedTo) {
+            const agentIndex = updatedAgents.findIndex(a => a.id === task.assignedTo);
+            if (agentIndex !== -1) {
+              updatedAgents[agentIndex].available = false;
+            }
+          }
+        });
+        setAgents(updatedAgents);
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      toast({
+        title: "Error",
+        description: "Error al cargar las tareas",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateTask = async () => {
     if (!taskDescription.trim()) {
       toast({
         title: "Error",
@@ -56,54 +102,99 @@ const Index = () => {
       return;
     }
 
-    // Create new task
-    const newTask: Task = {
-      id: Date.now(),
-      description: taskDescription,
-      assignedTo: agents[availableAgentIndex].id,
-      status: "active",
-    };
+    try {
+      // Create new task in Supabase
+      const { data, error } = await supabase
+        .from('tarea')
+        .insert([
+          {
+            tarea: taskDescription,
+            agente: agents[availableAgentIndex].id.toString(),
+            activo: '1'
+          }
+        ])
+        .select()
+        .single();
 
-    // Update agents availability
-    const updatedAgents = [...agents];
-    updatedAgents[availableAgentIndex].available = false;
+      if (error) throw error;
 
-    setTasks([...tasks, newTask]);
-    setAgents(updatedAgents);
-    setCurrentAgentIndex((availableAgentIndex + 1) % agents.length);
-    setTaskDescription("");
+      if (data) {
+        // Create new task object
+        const newTask: Task = {
+          id: data.id,
+          description: taskDescription,
+          assignedTo: agents[availableAgentIndex].id,
+          status: "active",
+        };
 
-    toast({
-      title: "Tarea creada",
-      description: `Tarea asignada a ${agents[availableAgentIndex].name}`,
-    });
+        // Update agents availability
+        const updatedAgents = [...agents];
+        updatedAgents[availableAgentIndex].available = false;
+
+        setTasks([newTask, ...tasks]);
+        setAgents(updatedAgents);
+        setCurrentAgentIndex((availableAgentIndex + 1) % agents.length);
+        setTaskDescription("");
+
+        toast({
+          title: "Tarea creada",
+          description: `Tarea asignada a ${agents[availableAgentIndex].name}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      toast({
+        title: "Error",
+        description: "Error al crear la tarea",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleCompleteTask = (taskId: number) => {
-    const updatedTasks = tasks.map((task) => {
-      if (task.id === taskId) {
-        return { ...task, status: "completed" as const };
-      }
-      return task;
-    });
+  const handleCompleteTask = async (taskId: number) => {
+    try {
+      const { error } = await supabase
+        .from('tarea')
+        .update({ 
+          activo: '0',
+          fecha_finalizacion: new Date().toISOString()
+        })
+        .eq('id', taskId);
 
-    // Make agent available again
-    const completedTask = tasks.find((t) => t.id === taskId);
-    if (completedTask?.assignedTo) {
-      const updatedAgents = agents.map((agent) => {
-        if (agent.id === completedTask.assignedTo) {
-          return { ...agent, available: true };
+      if (error) throw error;
+
+      const updatedTasks = tasks.map((task) => {
+        if (task.id === taskId) {
+          return { ...task, status: "completed" as const };
         }
-        return agent;
+        return task;
       });
-      setAgents(updatedAgents);
-    }
 
-    setTasks(updatedTasks);
-    toast({
-      title: "Tarea completada",
-      description: "La tarea ha sido marcada como completada",
-    });
+      // Make agent available again
+      const completedTask = tasks.find((t) => t.id === taskId);
+      if (completedTask?.assignedTo) {
+        const updatedAgents = agents.map((agent) => {
+          if (agent.id === completedTask.assignedTo) {
+            return { ...agent, available: true };
+          }
+          return agent;
+        });
+        setAgents(updatedAgents);
+      }
+
+      setTasks(updatedTasks);
+      toast({
+        title: "Tarea completada",
+        description: "La tarea ha sido marcada como completada",
+      });
+    } catch (error) {
+      console.error('Error completing task:', error);
+      toast({
+        title: "Error",
+        description: "Error al completar la tarea",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
