@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agentes: {
+        Row: {
+          created_at: string
+          entrada_laboral: string | null
+          id: number
+          nombre: string | null
+          salida_laboral: string | null
+        }
+        Insert: {
+          created_at?: string
+          entrada_laboral?: string | null
+          id?: number
+          nombre?: string | null
+          salida_laboral?: string | null
+        }
+        Update: {
+          created_at?: string
+          entrada_laboral?: string | null
+          id?: number
+          nombre?: string | null
+          salida_laboral?: string | null
+        }
+        Relationships: []
+      }
       tarea: {
         Row: {
           activo: string | null
