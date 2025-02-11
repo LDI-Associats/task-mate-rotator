@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,46 +31,6 @@ const Index = () => {
   // Cargar agentes y tareas desde Supabase al iniciar
   useEffect(() => {
     loadAgentsAndTasks();
-
-    // Suscribirse a cambios en la tabla de tareas
-    const tasksChannel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tarea'
-        },
-        (payload) => {
-          console.log('Task change received:', payload);
-          loadAgentsAndTasks(); // Recargar datos cuando hay cambios
-        }
-      )
-      .subscribe();
-
-    // Suscribirse a cambios en la tabla de agentes
-    const agentsChannel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'agentes'
-        },
-        (payload) => {
-          console.log('Agent change received:', payload);
-          loadAgentsAndTasks(); // Recargar datos cuando hay cambios
-        }
-      )
-      .subscribe();
-
-    // Limpiar suscripciones al desmontar
-    return () => {
-      supabase.removeChannel(tasksChannel);
-      supabase.removeChannel(agentsChannel);
-    };
   }, []);
 
   const loadAgentsAndTasks = async () => {
