@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { RefreshCw } from "lucide-react";
 
 interface Agent {
   id: number;
@@ -27,14 +28,46 @@ const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Cargar agentes y tareas desde Supabase al iniciar
   useEffect(() => {
     loadAgentsAndTasks();
+
+    // Suscribirse a cambios en la tabla de agentes
+    const agentsSubscription = supabase
+      .channel('agents-channel')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'agentes' 
+      }, () => {
+        loadAgentsAndTasks();
+      })
+      .subscribe();
+
+    // Suscribirse a cambios en la tabla de tareas
+    const tasksSubscription = supabase
+      .channel('tasks-channel')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'tarea' 
+      }, () => {
+        loadAgentsAndTasks();
+      })
+      .subscribe();
+
+    // Limpiar suscripciones al desmontar
+    return () => {
+      agentsSubscription.unsubscribe();
+      tasksSubscription.unsubscribe();
+    };
   }, []);
 
   const loadAgentsAndTasks = async () => {
     try {
+      setIsRefreshing(true);
       // Cargar agentes
       const { data: agentsData, error: agentsError } = await supabase
         .from('agentes')
@@ -90,6 +123,8 @@ const Index = () => {
         description: "Error al cargar los datos",
         variant: "destructive",
       });
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -254,7 +289,17 @@ const Index = () => {
   return (
     <div className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Sistema de Asignación de Tareas</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Sistema de Asignación de Tareas</h1>
+          <Button 
+            onClick={loadAgentsAndTasks} 
+            disabled={isRefreshing}
+            variant="outline"
+            size="icon"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
         
         {/* Task Creation Form */}
         <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
