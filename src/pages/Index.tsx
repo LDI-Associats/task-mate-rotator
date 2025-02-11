@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,8 @@ interface Agent {
   nombre: string;
   entrada_laboral: string;
   salida_laboral: string;
+  entrada_horario_comida: string;
+  salida_horario_comida: string;
   available: boolean;
 }
 
@@ -56,6 +57,8 @@ const Index = () => {
           nombre: agent.nombre || '',
           entrada_laboral: agent.entrada_laboral || '',
           salida_laboral: agent.salida_laboral || '',
+          entrada_horario_comida: agent.entrada_horario_comida || '',
+          salida_horario_comida: agent.salida_horario_comida || '',
           available: true
         }));
 
@@ -94,7 +97,16 @@ const Index = () => {
     const now = new Date();
     const currentTime = now.toLocaleTimeString('en-US', { hour12: false });
     
-    return currentTime >= agent.entrada_laboral && currentTime <= agent.salida_laboral;
+    // Check if current time is within lunch break
+    const isLunchBreak = currentTime >= agent.entrada_horario_comida && 
+                        currentTime <= agent.salida_horario_comida;
+    
+    // Check if current time is within working hours
+    const isWorkingHours = currentTime >= agent.entrada_laboral && 
+                          currentTime <= agent.salida_laboral;
+    
+    // Agent is available if it's within working hours but not during lunch break
+    return isWorkingHours && !isLunchBreak;
   };
 
   const findNextAvailableAgent = (): number => {
@@ -131,6 +143,17 @@ const Index = () => {
       toast({
         title: "Error",
         description: "No hay agentes disponibles en horario laboral en este momento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if agent is in lunch break
+    const selectedAgent = agents[availableAgentIndex];
+    if (!isAgentInWorkingHours(selectedAgent)) {
+      toast({
+        title: "Error",
+        description: `${selectedAgent.nombre} está en horario de comida o fuera de horario laboral`,
         variant: "destructive",
       });
       return;
@@ -256,6 +279,8 @@ const Index = () => {
                 (t) => t.assignedTo === agent.id && t.status === "active"
               );
               const isInWorkingHours = isAgentInWorkingHours(agent);
+              const now = new Date();
+              const currentTime = now.toLocaleTimeString('en-US', { hour12: false });
               return (
                 <div
                   key={agent.id}
@@ -265,11 +290,15 @@ const Index = () => {
                     <div className="flex items-center justify-between">
                       <span>{agent.nombre}</span>
                       <Badge variant={agent.available && isInWorkingHours ? "default" : "secondary"}>
-                        {!isInWorkingHours ? "Fuera de horario" : agent.available ? "Disponible" : "Ocupado"}
+                        {!isInWorkingHours ? 
+                          (currentTime >= agent.entrada_horario_comida && currentTime <= agent.salida_horario_comida) ?
+                            "En comida" : "Fuera de horario" 
+                          : agent.available ? "Disponible" : "Ocupado"}
                       </Badge>
                     </div>
                     <div className="text-sm text-gray-600">
                       <p>Horario: {agent.entrada_laboral} - {agent.salida_laboral}</p>
+                      <p>Comida: {agent.entrada_horario_comida} - {agent.salida_horario_comida}</p>
                     </div>
                   </div>
                   {activeTask && (
