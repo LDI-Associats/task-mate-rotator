@@ -90,14 +90,15 @@ const Index = () => {
 
       const { data: taskCountData, error: taskCountError } = await supabase
         .from('tarea')
+        .select('agente, count')
         .select('agente, count(*)')
-        .group('agente');
+        .groupBy('agente');
 
       if (taskCountError) throw taskCountError;
 
       if (agentsData && tasksData) {
         const taskCountMap = new Map(
-          taskCountData?.map(item => [item.agente, parseInt(item.count)]) || []
+          taskCountData?.map(item => [item.agente, Number(item.count)]) || []
         );
 
         const formattedAgents: Agent[] = agentsData.map(agent => ({
