@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { RefreshCw } from "lucide-react";
 
 interface Agent {
   id: number;
@@ -14,7 +14,6 @@ interface Agent {
   entrada_horario_comida: string;
   salida_horario_comida: string;
   available: boolean;
-  taskCount?: number;
 }
 
 interface Task {
@@ -29,11 +28,12 @@ const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Cargar agentes y tareas desde Supabase al iniciar
   useEffect(() => {
     loadAgentsAndTasks();
 
+    // Suscribirse a cambios en la tabla de tareas
     const tasksChannel = supabase
       .channel('schema-db-changes')
       .on(
@@ -50,6 +50,7 @@ const Index = () => {
       )
       .subscribe();
 
+    // Suscribirse a cambios en la tabla de agentes
     const agentsChannel = supabase
       .channel('schema-db-changes')
       .on(
@@ -66,6 +67,7 @@ const Index = () => {
       )
       .subscribe();
 
+    // Limpiar suscripciones al desmontar
     return () => {
       supabase.removeChannel(tasksChannel);
       supabase.removeChannel(agentsChannel);
@@ -74,33 +76,23 @@ const Index = () => {
 
   const loadAgentsAndTasks = async () => {
     try {
+      // Cargar agentes
       const { data: agentsData, error: agentsError } = await supabase
         .from('agentes')
         .select('*');
 
       if (agentsError) throw agentsError;
 
+      // Cargar tareas
       const { data: tasksData, error: tasksError } = await supabase
         .from('tarea')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30);
+        .order('created_at', { ascending: false });
 
       if (tasksError) throw tasksError;
 
-      const { data: taskCountData, error: taskCountError } = await supabase
-        .from('tarea')
-        .select('agente, count')
-        .select('agente, count(*)')
-        .groupBy('agente');
-
-      if (taskCountError) throw taskCountError;
-
       if (agentsData && tasksData) {
-        const taskCountMap = new Map(
-          taskCountData?.map(item => [item.agente, Number(item.count)]) || []
-        );
-
+        // Formatear agentes y establecer disponibilidad inicial
         const formattedAgents: Agent[] = agentsData.map(agent => ({
           id: agent.id,
           nombre: agent.nombre || '',
@@ -108,10 +100,10 @@ const Index = () => {
           salida_laboral: agent.salida_laboral || '',
           entrada_horario_comida: agent.entrada_horario_comida || '',
           salida_horario_comida: agent.salida_horario_comida || '',
-          available: true,
-          taskCount: taskCountMap.get(agent.id.toString()) || 0
+          available: true
         }));
 
+        // Formatear tareas
         const formattedTasks: Task[] = tasksData.map(task => ({
           id: task.id,
           description: task.tarea || '',
@@ -119,6 +111,7 @@ const Index = () => {
           status: task.activo === '1' ? 'active' as const : 'completed' as const
         }));
 
+        // Actualizar disponibilidad de agentes basado en tareas activas
         formattedTasks.forEach(task => {
           if (task.status === 'active' && task.assignedTo) {
             const agentIndex = formattedAgents.findIndex(a => a.id === task.assignedTo);
@@ -145,12 +138,15 @@ const Index = () => {
     const now = new Date();
     const currentTime = now.toLocaleTimeString('en-US', { hour12: false });
     
+    // Check if current time is within lunch break
     const isLunchBreak = currentTime >= agent.entrada_horario_comida && 
                         currentTime <= agent.salida_horario_comida;
     
+    // Check if current time is within working hours
     const isWorkingHours = currentTime >= agent.entrada_laboral && 
                           currentTime <= agent.salida_laboral;
     
+    // Agent is available if it's within working hours but not during lunch break
     return isWorkingHours && !isLunchBreak;
   };
 
@@ -193,6 +189,7 @@ const Index = () => {
       return;
     }
 
+    // Check if agent is in lunch break
     const selectedAgent = agents[availableAgentIndex];
     if (!isAgentInWorkingHours(selectedAgent)) {
       toast({
@@ -268,6 +265,7 @@ const Index = () => {
         return task;
       });
 
+      // Make agent available again
       const completedTask = tasks.find((t) => t.id === taskId);
       if (completedTask?.assignedTo) {
         const updatedAgents = agents.map((agent) => {
@@ -294,31 +292,12 @@ const Index = () => {
     }
   };
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await loadAgentsAndTasks();
-    setIsRefreshing(false);
-    toast({
-      title: "Actualizado",
-      description: "Los datos han sido actualizados",
-    });
-  };
-
   return (
     <div className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Sistema de Asignación de Tareas</h1>
-          <Button 
-            onClick={handleRefresh} 
-            variant="outline"
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Actualizar
-          </Button>
-        </div>
+        <h1 className="text-3xl font-bold mb-8">Sistema de Asignación de Tareas</h1>
         
+        {/* Task Creation Form */}
         <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
           <h2 className="text-xl font-semibold mb-4">Crear Nueva Tarea</h2>
           <div className="flex gap-4">
@@ -332,6 +311,7 @@ const Index = () => {
           </div>
         </div>
 
+        {/* Agents Status */}
         <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
           <h2 className="text-xl font-semibold mb-4">Estado de Agentes</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -360,7 +340,6 @@ const Index = () => {
                     <div className="text-sm text-gray-600">
                       <p>Horario: {agent.entrada_laboral} - {agent.salida_laboral}</p>
                       <p>Comida: {agent.entrada_horario_comida} - {agent.salida_horario_comida}</p>
-                      <p>Total de tareas asignadas: {agent.taskCount}</p>
                     </div>
                   </div>
                   {activeTask && (
@@ -382,8 +361,9 @@ const Index = () => {
           </div>
         </div>
 
+        {/* Tasks List */}
         <div className="bg-white p-6 rounded-lg shadow-sm">
-          <h2 className="text-xl font-semibold mb-4">Lista de Tareas (30 más recientes)</h2>
+          <h2 className="text-xl font-semibold mb-4">Lista de Tareas</h2>
           <div className="space-y-4">
             {tasks.map((task) => (
               <div
