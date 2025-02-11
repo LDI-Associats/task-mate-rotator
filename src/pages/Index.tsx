@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { RefreshCw } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Agent {
   id: number;
@@ -23,18 +24,70 @@ interface Task {
   status: "pending" | "active" | "completed";
 }
 
+const fetchAgentsAndTasks = async () => {
+  // Cargar agentes
+  const { data: agentsData, error: agentsError } = await supabase
+    .from('agentes')
+    .select('*');
+
+  if (agentsError) throw agentsError;
+
+  // Cargar tareas
+  const { data: tasksData, error: tasksError } = await supabase
+    .from('tarea')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (tasksError) throw tasksError;
+
+  const formattedAgents: Agent[] = agentsData.map(agent => ({
+    id: agent.id,
+    nombre: agent.nombre || '',
+    entrada_laboral: agent.entrada_laboral || '',
+    salida_laboral: agent.salida_laboral || '',
+    entrada_horario_comida: agent.entrada_horario_comida || '',
+    salida_horario_comida: agent.salida_horario_comida || '',
+    available: true
+  }));
+
+  const formattedTasks: Task[] = tasksData.map(task => ({
+    id: task.id,
+    description: task.tarea || '',
+    assignedTo: task.agente ? parseInt(task.agente) : null,
+    status: task.activo === '1' ? 'active' as const : 'completed' as const
+  }));
+
+  // Actualizar disponibilidad de agentes basado en tareas activas
+  formattedTasks.forEach(task => {
+    if (task.status === 'active' && task.assignedTo) {
+      const agentIndex = formattedAgents.findIndex(a => a.id === task.assignedTo);
+      if (agentIndex !== -1) {
+        formattedAgents[agentIndex].available = false;
+      }
+    }
+  });
+
+  return { agents: formattedAgents, tasks: formattedTasks };
+};
+
 const Index = () => {
   const [taskDescription, setTaskDescription] = useState("");
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Cargar agentes y tareas desde Supabase al iniciar
+  const { 
+    data: { agents = [], tasks = [] } = {}, 
+    isLoading: isRefreshing,
+    refetch: loadAgentsAndTasks
+  } = useQuery({
+    queryKey: ['agents-and-tasks'],
+    queryFn: fetchAgentsAndTasks,
+    refetchInterval: 30000, // Revalidar cada 30 segundos
+    staleTime: 10000, // Considerar los datos frescos por 10 segundos
+  });
+
+  // Suscribirse a cambios en Supabase
   useEffect(() => {
-    loadAgentsAndTasks();
-
-    // Suscribirse a cambios en la tabla de agentes
     const agentsSubscription = supabase
       .channel('agents-channel')
       .on('postgres_changes', { 
@@ -42,11 +95,10 @@ const Index = () => {
         schema: 'public', 
         table: 'agentes' 
       }, () => {
-        loadAgentsAndTasks();
+        queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
       })
       .subscribe();
 
-    // Suscribirse a cambios en la tabla de tareas
     const tasksSubscription = supabase
       .channel('tasks-channel')
       .on('postgres_changes', { 
@@ -54,79 +106,15 @@ const Index = () => {
         schema: 'public', 
         table: 'tarea' 
       }, () => {
-        loadAgentsAndTasks();
+        queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
       })
       .subscribe();
 
-    // Limpiar suscripciones al desmontar
     return () => {
       agentsSubscription.unsubscribe();
       tasksSubscription.unsubscribe();
     };
-  }, []);
-
-  const loadAgentsAndTasks = async () => {
-    try {
-      setIsRefreshing(true);
-      // Cargar agentes
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('agentes')
-        .select('*');
-
-      if (agentsError) throw agentsError;
-
-      // Cargar tareas
-      const { data: tasksData, error: tasksError } = await supabase
-        .from('tarea')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (tasksError) throw tasksError;
-
-      if (agentsData && tasksData) {
-        // Formatear agentes y establecer disponibilidad inicial
-        const formattedAgents: Agent[] = agentsData.map(agent => ({
-          id: agent.id,
-          nombre: agent.nombre || '',
-          entrada_laboral: agent.entrada_laboral || '',
-          salida_laboral: agent.salida_laboral || '',
-          entrada_horario_comida: agent.entrada_horario_comida || '',
-          salida_horario_comida: agent.salida_horario_comida || '',
-          available: true
-        }));
-
-        // Formatear tareas
-        const formattedTasks: Task[] = tasksData.map(task => ({
-          id: task.id,
-          description: task.tarea || '',
-          assignedTo: task.agente ? parseInt(task.agente) : null,
-          status: task.activo === '1' ? 'active' as const : 'completed' as const
-        }));
-
-        // Actualizar disponibilidad de agentes basado en tareas activas
-        formattedTasks.forEach(task => {
-          if (task.status === 'active' && task.assignedTo) {
-            const agentIndex = formattedAgents.findIndex(a => a.id === task.assignedTo);
-            if (agentIndex !== -1) {
-              formattedAgents[agentIndex].available = false;
-            }
-          }
-        });
-
-        setAgents(formattedAgents);
-        setTasks(formattedTasks);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-      toast({
-        title: "Error",
-        description: "Error al cargar los datos",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
+  }, [queryClient]);
 
   const isAgentInWorkingHours = (agent: Agent): boolean => {
     const now = new Date();
@@ -183,7 +171,6 @@ const Index = () => {
       return;
     }
 
-    // Check if agent is in lunch break
     const selectedAgent = agents[availableAgentIndex];
     if (!isAgentInWorkingHours(selectedAgent)) {
       toast({
@@ -210,20 +197,9 @@ const Index = () => {
       if (error) throw error;
 
       if (data) {
-        const newTask: Task = {
-          id: data.id,
-          description: taskDescription,
-          assignedTo: agents[availableAgentIndex].id,
-          status: "active",
-        };
-
-        const updatedAgents = [...agents];
-        updatedAgents[availableAgentIndex].available = false;
-
-        setTasks([newTask, ...tasks]);
-        setAgents(updatedAgents);
-        setCurrentAgentIndex((availableAgentIndex + 1) % agents.length);
+        queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
         setTaskDescription("");
+        setCurrentAgentIndex((availableAgentIndex + 1) % agents.length);
 
         toast({
           title: "Tarea creada",
@@ -252,26 +228,8 @@ const Index = () => {
 
       if (error) throw error;
 
-      const updatedTasks = tasks.map((task) => {
-        if (task.id === taskId) {
-          return { ...task, status: "completed" as const };
-        }
-        return task;
-      });
+      queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
 
-      // Make agent available again
-      const completedTask = tasks.find((t) => t.id === taskId);
-      if (completedTask?.assignedTo) {
-        const updatedAgents = agents.map((agent) => {
-          if (agent.id === completedTask.assignedTo) {
-            return { ...agent, available: true };
-          }
-          return agent;
-        });
-        setAgents(updatedAgents);
-      }
-
-      setTasks(updatedTasks);
       toast({
         title: "Tarea completada",
         description: "La tarea ha sido marcada como completada",
@@ -292,7 +250,7 @@ const Index = () => {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Sistema de Asignación de Tareas</h1>
           <Button 
-            onClick={loadAgentsAndTasks} 
+            onClick={() => loadAgentsAndTasks()}
             disabled={isRefreshing}
             variant="outline"
             size="icon"
