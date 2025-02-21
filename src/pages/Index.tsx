@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAgentsAndTasks } from "@/lib/api";
+import { fetchAgentsAndTasks, assignPendingTask } from "@/lib/api";
 import { CreateTaskForm } from "@/components/tasks/CreateTaskForm";
 import { AgentsList } from "@/components/agents/AgentsList";
 import { TasksList } from "@/components/tasks/TasksList";
+import { findNextAvailableAgent, isAgentInWorkingHours } from "@/utils/agent-utils";
+import { toast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
@@ -23,6 +25,39 @@ const Index = () => {
     refetchInterval: 30000, // Revalidar cada 30 segundos
     staleTime: 10000, // Considerar los datos frescos por 10 segundos
   });
+
+  // Verificar y asignar tareas pendientes cuando los datos cambien
+  useEffect(() => {
+    const checkAndAssignPendingTasks = async () => {
+      const pendingTasks = tasks.filter(t => t.status === "pending");
+      
+      if (pendingTasks.length > 0) {
+        const availableAgentIndex = findNextAvailableAgent(agents, currentAgentIndex);
+        
+        if (availableAgentIndex !== -1) {
+          const agent = agents[availableAgentIndex];
+          
+          if (agent.available && isAgentInWorkingHours(agent)) {
+            try {
+              await assignPendingTask(pendingTasks[0].id, agent.id);
+              setCurrentAgentIndex((availableAgentIndex + 1) % agents.length);
+              queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+              toast({
+                title: "Tarea asignada automáticamente",
+                description: `Tarea pendiente asignada a ${agent.nombre}`,
+              });
+            } catch (error) {
+              console.error('Error asignando tarea pendiente:', error);
+            }
+          }
+        }
+      }
+    };
+
+    if (agents.length > 0 && tasks.length > 0) {
+      checkAndAssignPendingTasks();
+    }
+  }, [agents, tasks, currentAgentIndex, queryClient]);
 
   // Suscribirse a cambios en Supabase
   useEffect(() => {
