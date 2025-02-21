@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import type { Agent, Task } from "@/types/task";
 import { isAgentInWorkingHours } from "@/utils/agent-utils";
-import { completeTask, cancelTask, reassignTask } from "@/lib/api";
+import { completeTask, cancelTask, reassignTask, assignPendingTask } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -24,9 +23,29 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
   const queryClient = useQueryClient();
   const [reassigningTaskId, setReassigningTaskId] = useState<number | null>(null);
 
-  const handleCompleteTask = async (taskId: number) => {
+  const checkAndAssignPendingTasks = async (availableAgentId: number) => {
+    const pendingTasks = tasks.filter(t => t.status === "pending");
+    if (pendingTasks.length > 0) {
+      const agent = agents.find(a => a.id === availableAgentId);
+      if (agent && agent.available && isAgentInWorkingHours(agent)) {
+        try {
+          await assignPendingTask(pendingTasks[0].id, availableAgentId);
+          queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+          toast({
+            title: "Tarea asignada",
+            description: `Tarea pendiente asignada a ${agent.nombre}`,
+          });
+        } catch (error) {
+          console.error('Error assigning pending task:', error);
+        }
+      }
+    }
+  };
+
+  const handleCompleteTask = async (taskId: number, agentId: number) => {
     try {
       await completeTask(taskId);
+      await checkAndAssignPendingTasks(agentId);
       queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
       toast({
         title: "Tarea completada",
@@ -42,9 +61,10 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
     }
   };
 
-  const handleCancelTask = async (taskId: number) => {
+  const handleCancelTask = async (taskId: number, agentId: number) => {
     try {
       await cancelTask(taskId);
+      await checkAndAssignPendingTasks(agentId);
       queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
       toast({
         title: "Tarea cancelada",
@@ -136,7 +156,7 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleCompleteTask(activeTask.id)}
+                      onClick={() => handleCompleteTask(activeTask.id, agent.id)}
                       className="w-full"
                     >
                       Completar Tarea
@@ -144,7 +164,7 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleCancelTask(activeTask.id)}
+                      onClick={() => handleCancelTask(activeTask.id, agent.id)}
                       className="w-full"
                     >
                       Cancelar Tarea

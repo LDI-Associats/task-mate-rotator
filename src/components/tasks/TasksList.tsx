@@ -8,9 +8,18 @@ interface TasksListProps {
 }
 
 export const TasksList = ({ tasks, agents }: TasksListProps) => {
+  const pendingTasks = tasks.filter(t => t.status === "pending").length;
+  
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
       <h2 className="text-xl font-semibold mb-4">Lista de Tareas</h2>
+      {pendingTasks > 0 && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+          <p className="text-yellow-800">
+            Hay {pendingTasks} {pendingTasks === 1 ? 'tarea pendiente' : 'tareas pendientes'} en cola
+          </p>
+        </div>
+      )}
       <div className="space-y-4">
         {tasks.map((task) => (
           <div
@@ -20,7 +29,10 @@ export const TasksList = ({ tasks, agents }: TasksListProps) => {
             <div>
               <p className="font-medium">{task.description}</p>
               <p className="text-sm text-gray-500">
-                Asignado a: {agents.find((a) => a.id === task.assignedTo)?.nombre}
+                {task.status === "pending" ? 
+                  "En cola de espera" : 
+                  `Asignado a: ${agents.find((a) => a.id === task.assignedTo)?.nombre}`
+                }
               </p>
             </div>
             <Badge
@@ -29,6 +41,8 @@ export const TasksList = ({ tasks, agents }: TasksListProps) => {
                   ? "default"
                   : task.status === "active"
                   ? "secondary"
+                  : task.status === "pending"
+                  ? "warning"
                   : "outline"
               }
             >

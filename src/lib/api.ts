@@ -30,7 +30,9 @@ export const fetchAgentsAndTasks = async () => {
     id: task.id,
     description: task.tarea || '',
     assignedTo: task.agente ? parseInt(task.agente) : null,
-    status: task.activo === '1' ? 'active' as const : 'completed' as const
+    status: task.activo === '1' ? 'active' as const : 
+           task.activo === '2' ? 'cancelled' as const :
+           task.activo === '3' ? 'pending' as const : 'completed' as const
   }));
 
   formattedTasks.forEach(task => {
@@ -45,13 +47,13 @@ export const fetchAgentsAndTasks = async () => {
   return { agents: formattedAgents, tasks: formattedTasks };
 };
 
-export const createTask = async (taskDescription: string, agentId: number) => {
+export const createTask = async (taskDescription: string, agentId?: number) => {
   const { data, error } = await supabase
     .from('tarea')
     .insert([{
       tarea: taskDescription,
-      agente: agentId.toString(),
-      activo: '1'
+      agente: agentId?.toString() || null,
+      activo: agentId ? '1' : '3' // '3' para tareas pendientes
     }])
     .select()
     .single();
@@ -76,7 +78,7 @@ export const cancelTask = async (taskId: number) => {
   const { error } = await supabase
     .from('tarea')
     .update({ 
-      activo: '2', // Usamos '2' para indicar cancelado
+      activo: '2',
       fecha_finalizacion: new Date().toISOString()
     })
     .eq('id', taskId);
@@ -88,9 +90,23 @@ export const reassignTask = async (taskId: number, newAgentId: number) => {
   const { error } = await supabase
     .from('tarea')
     .update({ 
-      agente: newAgentId.toString()
+      agente: newAgentId.toString(),
+      activo: '1'
     })
     .eq('id', taskId);
+
+  if (error) throw error;
+};
+
+export const assignPendingTask = async (taskId: number, agentId: number) => {
+  const { error } = await supabase
+    .from('tarea')
+    .update({ 
+      agente: agentId.toString(),
+      activo: '1'
+    })
+    .eq('id', taskId)
+    .eq('activo', '3'); // Solo asignar si aún está pendiente
 
   if (error) throw error;
 };

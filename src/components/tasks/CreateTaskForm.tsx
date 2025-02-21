@@ -35,63 +35,67 @@ export const CreateTaskForm = ({
       return;
     }
 
-    let selectedAgent: Agent;
-
-    if (assignmentMode === "auto") {
-      const availableAgentIndex = findNextAvailableAgent(agents, currentAgentIndex);
-      if (availableAgentIndex === -1) {
-        toast({
-          title: "Error",
-          description: "No hay agentes disponibles en horario laboral en este momento",
-          variant: "destructive",
-        });
-        return;
-      }
-      selectedAgent = agents[availableAgentIndex];
-      onAgentIndexChange((availableAgentIndex + 1) % agents.length);
-    } else {
-      const manuallySelectedAgent = agents.find(a => a.id.toString() === selectedAgentId);
-      if (!manuallySelectedAgent) {
-        toast({
-          title: "Error",
-          description: "Por favor seleccione un agente válido",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!manuallySelectedAgent.available) {
-        toast({
-          title: "Error",
-          description: "El agente seleccionado no está disponible",
-          variant: "destructive",
-        });
-        return;
-      }
-      selectedAgent = manuallySelectedAgent;
-    }
-
-    if (!isAgentInWorkingHours(selectedAgent)) {
-      toast({
-        title: "Error",
-        description: `${selectedAgent.nombre} está en horario de comida o fuera de horario laboral`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
-      await createTask(taskDescription, selectedAgent.id);
+      if (assignmentMode === "auto") {
+        const availableAgentIndex = findNextAvailableAgent(agents, currentAgentIndex);
+        
+        if (availableAgentIndex === -1) {
+          // Si no hay agentes disponibles, crear tarea pendiente
+          await createTask(taskDescription);
+          toast({
+            title: "Tarea creada",
+            description: "La tarea ha sido agregada a la cola de pendientes",
+          });
+        } else {
+          // Si hay un agente disponible, asignar la tarea
+          const selectedAgent = agents[availableAgentIndex];
+          await createTask(taskDescription, selectedAgent.id);
+          onAgentIndexChange((availableAgentIndex + 1) % agents.length);
+          toast({
+            title: "Tarea creada",
+            description: `Tarea asignada a ${selectedAgent.nombre}`,
+          });
+        }
+      } else {
+        // Asignación manual
+        const manuallySelectedAgent = agents.find(a => a.id.toString() === selectedAgentId);
+        if (!manuallySelectedAgent) {
+          toast({
+            title: "Error",
+            description: "Por favor seleccione un agente válido",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!manuallySelectedAgent.available) {
+          toast({
+            title: "Error",
+            description: "El agente seleccionado no está disponible",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!isAgentInWorkingHours(manuallySelectedAgent)) {
+          toast({
+            title: "Error",
+            description: `${manuallySelectedAgent.nombre} está en horario de comida o fuera de horario laboral`,
+            variant: "destructive",
+          });
+          return;
+        }
+        await createTask(taskDescription, manuallySelectedAgent.id);
+        toast({
+          title: "Tarea creada",
+          description: `Tarea asignada a ${manuallySelectedAgent.nombre}`,
+        });
+      }
+
       queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
       setTaskDescription("");
       if (assignmentMode === "manual") {
         setSelectedAgentId("auto");
         setAssignmentMode("auto");
       }
-
-      toast({
-        title: "Tarea creada",
-        description: `Tarea asignada a ${selectedAgent.nombre}`,
-      });
     } catch (error) {
       console.error('Error creating task:', error);
       toast({
