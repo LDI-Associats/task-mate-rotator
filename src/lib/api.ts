@@ -71,3 +71,26 @@ export const completeTask = async (taskId: number) => {
 
   if (error) throw error;
 };
+
+export const cancelTask = async (taskId: number) => {
+  const { error } = await supabase
+    .from('tarea')
+    .update({ 
+      activo: '2', // Usamos '2' para indicar cancelado
+      fecha_finalizacion: new Date().toISOString()
+    })
+    .eq('id', taskId);
+
+  if (error) throw error;
+};
+
+export const reassignTask = async (taskId: number, newAgentId: number) => {
+  const { error } = await supabase
+    .from('tarea')
+    .update({ 
+      agente: newAgentId.toString()
+    })
+    .eq('id', taskId);
+
+  if (error) throw error;
+};

@@ -13,5 +13,7 @@ export interface Task {
   id: number;
   description: string;
   assignedTo: number | null;
-  status: "pending" | "active" | "completed";
+  status: "pending" | "active" | "completed" | "cancelled";
 }
+
+export type AssignmentMode = "auto" | "manual";
