@@ -42,7 +42,7 @@ export const TasksList = ({ tasks, agents }: TasksListProps) => {
                   : task.status === "active"
                   ? "secondary"
                   : task.status === "pending"
-                  ? "warning"
+                  ? "secondary"
                   : "outline"
               }
             >
