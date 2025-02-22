@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { Agent, Task, CreateAgentData } from "@/types/task";
 
@@ -32,7 +33,10 @@ export const fetchAgentsAndTasks = async () => {
     assignedTo: task.agente ? parseInt(task.agente) : null,
     status: task.activo === '1' ? 'active' as const : 
            task.activo === '2' ? 'cancelled' as const :
-           task.activo === '3' ? 'pending' as const : 'completed' as const
+           task.activo === '3' ? 'pending' as const : 'completed' as const,
+    created_at: task.created_at,
+    ultima_reasignacion: task.ultima_reasignacion,
+    contador_reasignaciones: task.contador_reasignaciones || 0
   }));
 
   formattedTasks.forEach(task => {
@@ -93,7 +97,7 @@ export const reassignTask = async (taskId: number, newAgentId: number) => {
       agente: newAgentId.toString(),
       activo: '1',
       ultima_reasignacion: new Date().toISOString(),
-      contador_reasignaciones: supabase.sql`contador_reasignaciones + 1`
+      contador_reasignaciones: supabase.rpc('increment_reassignments', { task_id: taskId })
     })
     .eq('id', taskId);
 

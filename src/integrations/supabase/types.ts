@@ -46,26 +46,32 @@ export type Database = {
         Row: {
           activo: string | null
           agente: string | null
+          contador_reasignaciones: number | null
           created_at: string
           fecha_finalizacion: string | null
           id: number
           tarea: string | null
+          ultima_reasignacion: string | null
         }
         Insert: {
           activo?: string | null
           agente?: string | null
+          contador_reasignaciones?: number | null
           created_at?: string
           fecha_finalizacion?: string | null
           id?: number
           tarea?: string | null
+          ultima_reasignacion?: string | null
         }
         Update: {
           activo?: string | null
           agente?: string | null
+          contador_reasignaciones?: number | null
           created_at?: string
           fecha_finalizacion?: string | null
           id?: number
           tarea?: string | null
+          ultima_reasignacion?: string | null
         }
         Relationships: []
       }
