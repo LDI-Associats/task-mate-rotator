@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       agentes: {
         Row: {
+          activo: boolean | null
           created_at: string
           entrada_horario_comida: string | null
           entrada_laboral: string | null
@@ -20,6 +21,7 @@ export type Database = {
           salida_laboral: string | null
         }
         Insert: {
+          activo?: boolean | null
           created_at?: string
           entrada_horario_comida?: string | null
           entrada_laboral?: string | null
@@ -29,6 +31,7 @@ export type Database = {
           salida_laboral?: string | null
         }
         Update: {
+          activo?: boolean | null
           created_at?: string
           entrada_horario_comida?: string | null
           entrada_laboral?: string | null

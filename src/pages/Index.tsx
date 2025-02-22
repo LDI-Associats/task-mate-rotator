@@ -8,6 +8,7 @@ import { fetchAgentsAndTasks, assignPendingTask } from "@/lib/api";
 import { CreateTaskForm } from "@/components/tasks/CreateTaskForm";
 import { AgentsList } from "@/components/agents/AgentsList";
 import { TasksList } from "@/components/tasks/TasksList";
+import { ManageAgents } from "@/components/agents/ManageAgents";
 import { findNextAvailableAgent, isAgentInWorkingHours } from "@/utils/agent-utils";
 import { toast } from "@/components/ui/use-toast";
 
@@ -22,25 +23,27 @@ const Index = () => {
   } = useQuery({
     queryKey: ['agents-and-tasks'],
     queryFn: fetchAgentsAndTasks,
-    refetchInterval: 30000, // Revalidar cada 30 segundos
-    staleTime: 10000, // Considerar los datos frescos por 10 segundos
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 
-  // Verificar y asignar tareas pendientes cuando los datos cambien
+  // Filtrar agentes activos para las operaciones
+  const activeAgents = agents.filter(agent => agent.activo);
+
   useEffect(() => {
     const checkAndAssignPendingTasks = async () => {
       const pendingTasks = tasks.filter(t => t.status === "pending");
       
       if (pendingTasks.length > 0) {
-        const availableAgentIndex = findNextAvailableAgent(agents, currentAgentIndex);
+        const availableAgentIndex = findNextAvailableAgent(activeAgents, currentAgentIndex);
         
         if (availableAgentIndex !== -1) {
-          const agent = agents[availableAgentIndex];
+          const agent = activeAgents[availableAgentIndex];
           
           if (agent.available && isAgentInWorkingHours(agent)) {
             try {
               await assignPendingTask(pendingTasks[0].id, agent.id);
-              setCurrentAgentIndex((availableAgentIndex + 1) % agents.length);
+              setCurrentAgentIndex((availableAgentIndex + 1) % activeAgents.length);
               queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
               toast({
                 title: "Tarea asignada automáticamente",
@@ -54,12 +57,11 @@ const Index = () => {
       }
     };
 
-    if (agents.length > 0 && tasks.length > 0) {
+    if (activeAgents.length > 0 && tasks.length > 0) {
       checkAndAssignPendingTasks();
     }
-  }, [agents, tasks, currentAgentIndex, queryClient]);
+  }, [activeAgents, tasks, currentAgentIndex, queryClient]);
 
-  // Suscribirse a cambios en Supabase
   useEffect(() => {
     const agentsSubscription = supabase
       .channel('agents-channel')
@@ -104,13 +106,15 @@ const Index = () => {
           </Button>
         </div>
         
+        <ManageAgents agents={agents} />
+        
         <CreateTaskForm 
-          agents={agents}
+          agents={activeAgents}
           currentAgentIndex={currentAgentIndex}
           onAgentIndexChange={setCurrentAgentIndex}
         />
         
-        <AgentsList agents={agents} tasks={tasks} />
+        <AgentsList agents={activeAgents} tasks={tasks} />
         
         <TasksList tasks={tasks} agents={agents} />
       </div>

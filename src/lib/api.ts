@@ -1,6 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import type { Agent, Task } from "@/types/task";
+import type { Agent, Task, CreateAgentData } from "@/types/task";
 
 export const fetchAgentsAndTasks = async () => {
   const { data: agentsData, error: agentsError } = await supabase
@@ -23,7 +22,8 @@ export const fetchAgentsAndTasks = async () => {
     salida_laboral: agent.salida_laboral || '',
     entrada_horario_comida: agent.entrada_horario_comida || '',
     salida_horario_comida: agent.salida_horario_comida || '',
-    available: true
+    available: true,
+    activo: agent.activo
   }));
 
   const formattedTasks: Task[] = tasksData.map(task => ({
@@ -107,6 +107,32 @@ export const assignPendingTask = async (taskId: number, agentId: number) => {
     })
     .eq('id', taskId)
     .eq('activo', '3'); // Solo asignar si aún está pendiente
+
+  if (error) throw error;
+};
+
+export const createAgent = async (data: CreateAgentData) => {
+  const { error } = await supabase
+    .from('agentes')
+    .insert([data]);
+
+  if (error) throw error;
+};
+
+export const updateAgent = async (id: number, data: CreateAgentData) => {
+  const { error } = await supabase
+    .from('agentes')
+    .update(data)
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
+export const deleteAgent = async (id: number) => {
+  const { error } = await supabase
+    .from('agentes')
+    .delete()
+    .eq('id', id);
 
   if (error) throw error;
 };

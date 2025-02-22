@@ -14,7 +14,8 @@ export const isAgentInWorkingHours = (agent: Agent): boolean => {
                         currentTime <= agent.salida_laboral;
   
   // Agent is available if it's within working hours but not during lunch break
-  return isWorkingHours && !isLunchBreak;
+  // AND the agent is active
+  return isWorkingHours && !isLunchBreak && agent.activo;
 };
 
 export const findNextAvailableAgent = (agents: Agent[], currentIndex: number): number => {
@@ -25,7 +26,7 @@ export const findNextAvailableAgent = (agents: Agent[], currentIndex: number): n
     const indexToCheck = (currentIndex + checkCount) % agents.length;
     const agent = agents[indexToCheck];
     
-    if (agent.available && isAgentInWorkingHours(agent)) {
+    if (agent.available && isAgentInWorkingHours(agent) && agent.activo) {
       availableAgentIndex = indexToCheck;
       break;
     }
