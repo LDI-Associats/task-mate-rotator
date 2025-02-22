@@ -1,3 +1,5 @@
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,16 +14,44 @@ import { isAgentInWorkingHours } from "@/utils/agent-utils";
 import { completeTask, cancelTask, reassignTask, assignPendingTask } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 
 interface AgentsListProps {
   agents: Agent[];
   tasks: Task[];
 }
 
+const formatActiveTime = (startTime: string): string => {
+  const start = new Date(startTime);
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - start.getTime()) / (1000 * 60));
+  return `${diffInMinutes} minutos`;
+};
+
 export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
   const queryClient = useQueryClient();
   const [reassigningTaskId, setReassigningTaskId] = useState<number | null>(null);
+  const [activeTimes, setActiveTimes] = useState<{ [key: number]: string }>({});
+
+  // Efecto para actualizar los tiempos activos cada minuto
+  useEffect(() => {
+    const updateActiveTimes = () => {
+      const newActiveTimes: { [key: number]: string } = {};
+      tasks.forEach(task => {
+        if (task.status === "active") {
+          newActiveTimes[task.id] = formatActiveTime(task.created_at);
+        }
+      });
+      setActiveTimes(newActiveTimes);
+    };
+
+    // Actualizar inmediatamente
+    updateActiveTimes();
+
+    // Actualizar cada minuto
+    const interval = setInterval(updateActiveTimes, 60000);
+
+    return () => clearInterval(interval);
+  }, [tasks]);
 
   const checkAndAssignPendingTasks = async (availableAgentId: number) => {
     const pendingTasks = tasks.filter(t => t.status === "pending");
@@ -151,7 +181,17 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
               </div>
               {activeTask && (
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600">Tarea actual: {activeTask.description}</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-600">Tarea actual: {activeTask.description}</p>
+                    <p className="text-sm text-gray-500">
+                      Tiempo activo: {activeTimes[activeTask.id]}
+                    </p>
+                    {activeTask.contador_reasignaciones > 0 && (
+                      <p className="text-sm text-gray-500">
+                        Reasignada: {activeTask.contador_reasignaciones} {activeTask.contador_reasignaciones === 1 ? 'vez' : 'veces'}
+                      </p>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-2">
                     <Button
                       variant="outline"

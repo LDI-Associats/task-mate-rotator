@@ -91,7 +91,9 @@ export const reassignTask = async (taskId: number, newAgentId: number) => {
     .from('tarea')
     .update({ 
       agente: newAgentId.toString(),
-      activo: '1'
+      activo: '1',
+      ultima_reasignacion: new Date().toISOString(),
+      contador_reasignaciones: supabase.sql`contador_reasignaciones + 1`
     })
     .eq('id', taskId);
 

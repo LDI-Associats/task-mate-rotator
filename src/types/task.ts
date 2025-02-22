@@ -15,6 +15,9 @@ export interface Task {
   description: string;
   assignedTo: number | null;
   status: "pending" | "active" | "completed" | "cancelled";
+  created_at: string;
+  ultima_reasignacion: string | null;
+  contador_reasignaciones: number;
 }
 
 export type AssignmentMode = "auto" | "manual";
