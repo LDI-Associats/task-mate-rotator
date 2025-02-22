@@ -8,7 +8,6 @@ import { fetchAgentsAndTasks, assignPendingTask } from "@/lib/api";
 import { CreateTaskForm } from "@/components/tasks/CreateTaskForm";
 import { AgentsList } from "@/components/agents/AgentsList";
 import { TasksList } from "@/components/tasks/TasksList";
-import { ManageAgents } from "@/components/agents/ManageAgents";
 import { findNextAvailableAgent, isAgentInWorkingHours } from "@/utils/agent-utils";
 import { toast } from "@/components/ui/use-toast";
 
@@ -92,8 +91,8 @@ const Index = () => {
   }, [queryClient]);
 
   return (
-    <div className="min-h-screen p-8 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto p-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">Sistema de Asignación de Tareas</h1>
           <Button 
@@ -105,8 +104,6 @@ const Index = () => {
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
-        
-        <ManageAgents agents={agents} />
         
         <CreateTaskForm 
           agents={activeAgents}
