@@ -91,13 +91,20 @@ export const cancelTask = async (taskId: number) => {
 };
 
 export const reassignTask = async (taskId: number, newAgentId: number) => {
+  // Primero llamamos a la función RPC para obtener el nuevo valor del contador
+  const { data: newCount, error: rpcError } = await supabase
+    .rpc('increment_reassignments', { task_id: taskId });
+
+  if (rpcError) throw rpcError;
+
+  // Luego actualizamos la tarea con el nuevo contador
   const { error } = await supabase
     .from('tarea')
     .update({ 
       agente: newAgentId.toString(),
       activo: '1',
       ultima_reasignacion: new Date().toISOString(),
-      contador_reasignaciones: supabase.rpc('increment_reassignments', { task_id: taskId })
+      contador_reasignaciones: newCount
     })
     .eq('id', taskId);
 

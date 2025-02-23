@@ -80,7 +80,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_reassignments: {
+        Args: {
+          task_id: number
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
