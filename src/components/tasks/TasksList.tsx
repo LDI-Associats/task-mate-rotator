@@ -9,6 +9,7 @@ interface TasksListProps {
 
 export const TasksList = ({ tasks, agents }: TasksListProps) => {
   const pendingTasks = tasks.filter(t => t.status === "pending").length;
+  const limitedTasks = tasks.slice(0, 20); // Limitamos a 20 tareas
   
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -21,7 +22,7 @@ export const TasksList = ({ tasks, agents }: TasksListProps) => {
         </div>
       )}
       <div className="space-y-4">
-        {tasks.map((task) => (
+        {limitedTasks.map((task) => (
           <div
             key={task.id}
             className="p-4 border rounded-md flex items-center justify-between"
@@ -52,6 +53,11 @@ export const TasksList = ({ tasks, agents }: TasksListProps) => {
         ))}
         {tasks.length === 0 && (
           <p className="text-center text-gray-500">No hay tareas creadas</p>
+        )}
+        {tasks.length > 20 && (
+          <p className="text-center text-gray-500 text-sm mt-4">
+            Mostrando las 20 tareas más recientes de un total de {tasks.length}
+          </p>
         )}
       </div>
     </div>
