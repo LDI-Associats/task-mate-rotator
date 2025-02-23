@@ -33,7 +33,8 @@ interface ConfirmationDialogState {
   isOpen: boolean;
   taskId: number | null;
   agentId: number | null;
-  type: 'complete' | 'cancel' | null;
+  type: 'complete' | 'cancel' | 'reassign' | null;
+  newAgentId?: number;
 }
 
 const formatActiveTime = (startTime: string): string => {
@@ -109,43 +110,6 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
     });
   };
 
-  const handleConfirmAction = async () => {
-    if (!confirmDialog.taskId || !confirmDialog.agentId || !confirmDialog.type) return;
-
-    try {
-      if (confirmDialog.type === 'complete') {
-        await completeTask(confirmDialog.taskId);
-        await checkAndAssignPendingTasks(confirmDialog.agentId);
-        toast({
-          title: "Tarea completada",
-          description: "La tarea ha sido marcada como completada",
-        });
-      } else {
-        await cancelTask(confirmDialog.taskId);
-        await checkAndAssignPendingTasks(confirmDialog.agentId);
-        toast({
-          title: "Tarea cancelada",
-          description: "La tarea ha sido cancelada",
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
-    } catch (error) {
-      console.error('Error processing task:', error);
-      toast({
-        title: "Error",
-        description: `Error al ${confirmDialog.type === 'complete' ? 'completar' : 'cancelar'} la tarea`,
-        variant: "destructive",
-      });
-    } finally {
-      setConfirmDialog({
-        isOpen: false,
-        taskId: null,
-        agentId: null,
-        type: null
-      });
-    }
-  };
-
   const handleReassignTask = async (taskId: number, newAgentId: number) => {
     const newAgent = agents.find(a => a.id === newAgentId);
     if (!newAgent || !newAgent.available) {
@@ -166,13 +130,69 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
       return;
     }
 
-    await reassignTask(taskId, newAgentId);
-    queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
-    setReassigningTaskId(null);
-    toast({
-      title: "Tarea reasignada",
-      description: `La tarea ha sido reasignada a ${newAgent.nombre}`,
+    setConfirmDialog({
+      isOpen: true,
+      taskId,
+      agentId: null,
+      type: 'reassign',
+      newAgentId
     });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmDialog.taskId || !confirmDialog.type) return;
+
+    try {
+      switch (confirmDialog.type) {
+        case 'complete':
+          if (!confirmDialog.agentId) return;
+          await completeTask(confirmDialog.taskId);
+          await checkAndAssignPendingTasks(confirmDialog.agentId);
+          toast({
+            title: "Tarea completada",
+            description: "La tarea ha sido marcada como completada",
+          });
+          break;
+        case 'cancel':
+          if (!confirmDialog.agentId) return;
+          await cancelTask(confirmDialog.taskId);
+          await checkAndAssignPendingTasks(confirmDialog.agentId);
+          toast({
+            title: "Tarea cancelada",
+            description: "La tarea ha sido cancelada",
+          });
+          break;
+        case 'reassign':
+          if (!confirmDialog.newAgentId) return;
+          await reassignTask(confirmDialog.taskId, confirmDialog.newAgentId);
+          const newAgent = agents.find(a => a.id === confirmDialog.newAgentId);
+          setReassigningTaskId(null);
+          toast({
+            title: "Tarea reasignada",
+            description: `La tarea ha sido reasignada a ${newAgent?.nombre}`,
+          });
+          break;
+      }
+      queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+    } catch (error) {
+      console.error('Error processing task:', error);
+      toast({
+        title: "Error",
+        description: `Error al ${
+          confirmDialog.type === 'complete' ? 'completar' : 
+          confirmDialog.type === 'cancel' ? 'cancelar' : 
+          'reasignar'
+        } la tarea`,
+        variant: "destructive",
+      });
+    } finally {
+      setConfirmDialog({
+        isOpen: false,
+        taskId: null,
+        agentId: null,
+        type: null
+      });
+    }
   };
 
   return (
@@ -291,22 +311,27 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmDialog.type === 'complete' ? 
-                '¿Completar tarea?' : 
-                '¿Cancelar tarea?'
-              }
+              {confirmDialog.type === 'complete' ? '¿Completar tarea?' : 
+               confirmDialog.type === 'cancel' ? '¿Cancelar tarea?' :
+               '¿Reasignar tarea?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmDialog.type === 'complete' ? 
                 '¿Estás seguro de que deseas marcar esta tarea como completada?' : 
-                '¿Estás seguro de que deseas cancelar esta tarea?'
+                confirmDialog.type === 'cancel' ?
+                '¿Estás seguro de que deseas cancelar esta tarea?' :
+                `¿Estás seguro de que deseas reasignar esta tarea a ${
+                  agents.find(a => a.id === confirmDialog.newAgentId)?.nombre
+                }?`
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmAction}>
-              {confirmDialog.type === 'complete' ? 'Completar' : 'Cancelar tarea'}
+              {confirmDialog.type === 'complete' ? 'Completar' : 
+               confirmDialog.type === 'cancel' ? 'Cancelar tarea' :
+               'Reasignar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
