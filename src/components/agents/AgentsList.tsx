@@ -1,7 +1,16 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -20,6 +29,13 @@ interface AgentsListProps {
   tasks: Task[];
 }
 
+interface ConfirmationDialogState {
+  isOpen: boolean;
+  taskId: number | null;
+  agentId: number | null;
+  type: 'complete' | 'cancel' | null;
+}
+
 const formatActiveTime = (startTime: string): string => {
   const start = new Date(startTime);
   const now = new Date();
@@ -31,8 +47,13 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
   const queryClient = useQueryClient();
   const [reassigningTaskId, setReassigningTaskId] = useState<number | null>(null);
   const [activeTimes, setActiveTimes] = useState<{ [key: number]: string }>({});
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmationDialogState>({
+    isOpen: false,
+    taskId: null,
+    agentId: null,
+    type: null
+  });
 
-  // Efecto para actualizar los tiempos activos cada minuto
   useEffect(() => {
     const updateActiveTimes = () => {
       const newActiveTimes: { [key: number]: string } = {};
@@ -44,10 +65,8 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
       setActiveTimes(newActiveTimes);
     };
 
-    // Actualizar inmediatamente
     updateActiveTimes();
 
-    // Actualizar cada minuto
     const interval = setInterval(updateActiveTimes, 60000);
 
     return () => clearInterval(interval);
@@ -73,79 +92,87 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
   };
 
   const handleCompleteTask = async (taskId: number, agentId: number) => {
-    try {
-      await completeTask(taskId);
-      await checkAndAssignPendingTasks(agentId);
-      queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
-      toast({
-        title: "Tarea completada",
-        description: "La tarea ha sido marcada como completada",
-      });
-    } catch (error) {
-      console.error('Error completing task:', error);
-      toast({
-        title: "Error",
-        description: "Error al completar la tarea",
-        variant: "destructive",
-      });
-    }
+    setConfirmDialog({
+      isOpen: true,
+      taskId,
+      agentId,
+      type: 'complete'
+    });
   };
 
   const handleCancelTask = async (taskId: number, agentId: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      taskId,
+      agentId,
+      type: 'cancel'
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmDialog.taskId || !confirmDialog.agentId || !confirmDialog.type) return;
+
     try {
-      await cancelTask(taskId);
-      await checkAndAssignPendingTasks(agentId);
+      if (confirmDialog.type === 'complete') {
+        await completeTask(confirmDialog.taskId);
+        await checkAndAssignPendingTasks(confirmDialog.agentId);
+        toast({
+          title: "Tarea completada",
+          description: "La tarea ha sido marcada como completada",
+        });
+      } else {
+        await cancelTask(confirmDialog.taskId);
+        await checkAndAssignPendingTasks(confirmDialog.agentId);
+        toast({
+          title: "Tarea cancelada",
+          description: "La tarea ha sido cancelada",
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
-      toast({
-        title: "Tarea cancelada",
-        description: "La tarea ha sido cancelada",
-      });
     } catch (error) {
-      console.error('Error canceling task:', error);
+      console.error('Error processing task:', error);
       toast({
         title: "Error",
-        description: "Error al cancelar la tarea",
+        description: `Error al ${confirmDialog.type === 'complete' ? 'completar' : 'cancelar'} la tarea`,
         variant: "destructive",
+      });
+    } finally {
+      setConfirmDialog({
+        isOpen: false,
+        taskId: null,
+        agentId: null,
+        type: null
       });
     }
   };
 
   const handleReassignTask = async (taskId: number, newAgentId: number) => {
-    try {
-      const newAgent = agents.find(a => a.id === newAgentId);
-      if (!newAgent || !newAgent.available) {
-        toast({
-          title: "Error",
-          description: "El agente seleccionado no está disponible",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!isAgentInWorkingHours(newAgent)) {
-        toast({
-          title: "Error",
-          description: "El agente está fuera de horario o en su hora de comida",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      await reassignTask(taskId, newAgentId);
-      queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
-      setReassigningTaskId(null);
-      toast({
-        title: "Tarea reasignada",
-        description: `La tarea ha sido reasignada a ${newAgent.nombre}`,
-      });
-    } catch (error) {
-      console.error('Error reassigning task:', error);
+    const newAgent = agents.find(a => a.id === newAgentId);
+    if (!newAgent || !newAgent.available) {
       toast({
         title: "Error",
-        description: "Error al reasignar la tarea",
+        description: "El agente seleccionado no está disponible",
         variant: "destructive",
       });
+      return;
     }
+
+    if (!isAgentInWorkingHours(newAgent)) {
+      toast({
+        title: "Error",
+        description: "El agente está fuera de horario o en su hora de comida",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    await reassignTask(taskId, newAgentId);
+    queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+    setReassigningTaskId(null);
+    toast({
+      title: "Tarea reasignada",
+      description: `La tarea ha sido reasignada a ${newAgent.nombre}`,
+    });
   };
 
   return (
@@ -247,6 +274,43 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
           );
         })}
       </div>
+
+      <AlertDialog 
+        open={confirmDialog.isOpen} 
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setConfirmDialog({
+              isOpen: false,
+              taskId: null,
+              agentId: null,
+              type: null
+            });
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmDialog.type === 'complete' ? 
+                '¿Completar tarea?' : 
+                '¿Cancelar tarea?'
+              }
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog.type === 'complete' ? 
+                '¿Estás seguro de que deseas marcar esta tarea como completada?' : 
+                '¿Estás seguro de que deseas cancelar esta tarea?'
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmAction}>
+              {confirmDialog.type === 'complete' ? 'Completar' : 'Cancelar tarea'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
