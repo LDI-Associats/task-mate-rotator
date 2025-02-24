@@ -35,6 +35,7 @@ interface ConfirmationDialogState {
   agentId: number | null;
   type: 'complete' | 'cancel' | 'reassign' | null;
   newAgentId?: number;
+  isPending?: boolean;
 }
 
 const formatActiveTime = (startTime: string): string => {
@@ -130,12 +131,15 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
       return;
     }
 
+    const isAgentBusy = !newAgent.available;
+    
     setConfirmDialog({
       isOpen: true,
       taskId,
       agentId: null,
       type: 'reassign',
-      newAgentId
+      newAgentId,
+      isPending: isAgentBusy
     });
   };
 
@@ -164,12 +168,18 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
           break;
         case 'reassign':
           if (!confirmDialog.newAgentId) return;
-          await reassignTask(confirmDialog.taskId, confirmDialog.newAgentId);
+          await reassignTask(
+            confirmDialog.taskId, 
+            confirmDialog.newAgentId,
+            confirmDialog.isPending
+          );
           const newAgent = agents.find(a => a.id === confirmDialog.newAgentId);
           setReassigningTaskId(null);
           toast({
             title: "Tarea reasignada",
-            description: `La tarea ha sido reasignada a ${newAgent?.nombre}`,
+            description: confirmDialog.isPending
+              ? `Tarea agregada a la cola de ${newAgent?.nombre}`
+              : `Tarea asignada a ${newAgent?.nombre}`,
           });
           break;
       }
@@ -203,9 +213,13 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
           const activeTask = tasks.find(
             (t) => t.assignedTo === agent.id && t.status === "active"
           );
+          const pendingTasks = tasks.filter(
+            (t) => t.assignedTo === agent.id && t.status === "pending"
+          );
           const isInWorkingHours = isAgentInWorkingHours(agent);
           const now = new Date();
           const currentTime = now.toLocaleTimeString('en-US', { hour12: false });
+          
           return (
             <div
               key={agent.id}
@@ -226,6 +240,15 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
                   <p>Comida: {agent.entrada_horario_comida} - {agent.salida_horario_comida}</p>
                 </div>
               </div>
+
+              {pendingTasks.length > 0 && (
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-800">
+                    {pendingTasks.length} {pendingTasks.length === 1 ? 'tarea pendiente' : 'tareas pendientes'} en cola
+                  </p>
+                </div>
+              )}
+
               {activeTask && (
                 <div className="space-y-2">
                   <div className="space-y-1">
@@ -321,7 +344,7 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
                 '¿Estás seguro de que deseas marcar esta tarea como completada?' : 
                 confirmDialog.type === 'cancel' ?
                 '¿Estás seguro de que deseas cancelar esta tarea?' :
-                `¿Estás seguro de que deseas reasignar esta tarea a ${
+                `¿Estás seguro de que deseas ${confirmDialog.isPending ? 'agregar esta tarea a la cola de' : 'reasignar esta tarea a'} ${
                   agents.find(a => a.id === confirmDialog.newAgentId)?.nombre
                 }?`
               }
@@ -332,7 +355,7 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
             <AlertDialogAction onClick={handleConfirmAction}>
               {confirmDialog.type === 'complete' ? 'Completar' : 
                confirmDialog.type === 'cancel' ? 'Cancelar tarea' :
-               'Reasignar'}
+               confirmDialog.isPending ? 'Agregar a cola' : 'Reasignar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

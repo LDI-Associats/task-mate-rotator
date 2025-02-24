@@ -78,10 +78,15 @@ export const CreateTaskForm = ({
           return;
         }
 
-        await createTask(taskDescription, manuallySelectedAgent.id);
+        // Si el agente está ocupado, crear la tarea como pendiente
+        const isAgentBusy = !manuallySelectedAgent.available;
+        await createTask(taskDescription, manuallySelectedAgent.id, isAgentBusy);
+        
         toast({
           title: "Tarea creada",
-          description: `Tarea asignada a ${manuallySelectedAgent.nombre}`,
+          description: isAgentBusy 
+            ? `Tarea agregada a la cola de ${manuallySelectedAgent.nombre}`
+            : `Tarea asignada a ${manuallySelectedAgent.nombre}`,
         });
       }
 

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import type { Agent, Task, CreateAgentData } from "@/types/task";
 
@@ -51,13 +50,13 @@ export const fetchAgentsAndTasks = async () => {
   return { agents: formattedAgents, tasks: formattedTasks };
 };
 
-export const createTask = async (taskDescription: string, agentId?: number) => {
+export const createTask = async (taskDescription: string, agentId?: number, isPending: boolean = false) => {
   const { data, error } = await supabase
     .from('tarea')
     .insert([{
       tarea: taskDescription,
       agente: agentId?.toString() || null,
-      activo: agentId ? '1' : '3' // '3' para tareas pendientes
+      activo: isPending ? '3' : agentId ? '1' : '3' // '3' para tareas pendientes
     }])
     .select()
     .single();
@@ -90,19 +89,17 @@ export const cancelTask = async (taskId: number) => {
   if (error) throw error;
 };
 
-export const reassignTask = async (taskId: number, newAgentId: number) => {
-  // Primero llamamos a la función RPC para obtener el nuevo valor del contador
+export const reassignTask = async (taskId: number, newAgentId: number, isPending: boolean = false) => {
   const { data: newCount, error: rpcError } = await supabase
     .rpc('increment_reassignments', { task_id: taskId });
 
   if (rpcError) throw rpcError;
 
-  // Luego actualizamos la tarea con el nuevo contador
   const { error } = await supabase
     .from('tarea')
     .update({ 
       agente: newAgentId.toString(),
-      activo: '1',
+      activo: isPending ? '3' : '1',
       ultima_reasignacion: new Date().toISOString(),
       contador_reasignaciones: newCount
     })
