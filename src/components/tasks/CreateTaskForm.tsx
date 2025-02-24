@@ -25,7 +25,6 @@ export const CreateTaskForm = ({
   const [selectedAgentId, setSelectedAgentId] = useState<string>("auto");
   const queryClient = useQueryClient();
 
-  // Filtrar agentes que están realmente disponibles
   const availableAgents = agents.filter(agent => 
     agent.available && isAgentInWorkingHours(agent)
   );
@@ -45,14 +44,12 @@ export const CreateTaskForm = ({
         const availableAgentIndex = findNextAvailableAgent(agents, currentAgentIndex);
         
         if (availableAgentIndex === -1) {
-          // Si no hay agentes disponibles, crear tarea pendiente
           await createTask(taskDescription);
           toast({
             title: "Tarea creada",
             description: "La tarea ha sido agregada a la cola de pendientes",
           });
         } else {
-          // Si hay un agente disponible, asignar la tarea
           const selectedAgent = agents[availableAgentIndex];
           await createTask(taskDescription, selectedAgent.id);
           onAgentIndexChange((availableAgentIndex + 1) % agents.length);
@@ -62,7 +59,6 @@ export const CreateTaskForm = ({
           });
         }
       } else {
-        // Asignación manual
         const manuallySelectedAgent = agents.find(a => a.id.toString() === selectedAgentId);
         if (!manuallySelectedAgent) {
           toast({
@@ -73,7 +69,6 @@ export const CreateTaskForm = ({
           return;
         }
 
-        // Verificación adicional de disponibilidad
         if (!manuallySelectedAgent.available || !isAgentInWorkingHours(manuallySelectedAgent)) {
           toast({
             title: "Error",
@@ -107,7 +102,7 @@ export const CreateTaskForm = ({
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
+    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm mb-8">
       <h2 className="text-xl font-semibold mb-4">Crear Nueva Tarea</h2>
       <div className="space-y-4">
         <Input
@@ -116,50 +111,54 @@ export const CreateTaskForm = ({
           onChange={(e) => setTaskDescription(e.target.value)}
           className="w-full"
         />
-        <div className="flex gap-4">
-          <Select
-            value={assignmentMode}
-            onValueChange={(value: AssignmentMode) => {
-              setAssignmentMode(value);
-              if (value === "auto") setSelectedAgentId("auto");
-            }}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Modo de asignación" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">Asignación automática</SelectItem>
-              <SelectItem value="manual">Asignación manual</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          {assignmentMode === "manual" && (
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="w-full sm:w-auto">
             <Select
-              value={selectedAgentId}
-              onValueChange={setSelectedAgentId}
+              value={assignmentMode}
+              onValueChange={(value: AssignmentMode) => {
+                setAssignmentMode(value);
+                if (value === "auto") setSelectedAgentId("auto");
+              }}
             >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Seleccionar agente" />
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Modo de asignación" />
               </SelectTrigger>
               <SelectContent>
-                {availableAgents.map(agent => (
-                  <SelectItem 
-                    key={agent.id} 
-                    value={agent.id.toString()}
-                  >
-                    {agent.nombre}
-                  </SelectItem>
-                ))}
-                {availableAgents.length === 0 && (
-                  <SelectItem value="no-available" disabled>
-                    No hay agentes disponibles
-                  </SelectItem>
-                )}
+                <SelectItem value="auto">Asignación automática</SelectItem>
+                <SelectItem value="manual">Asignación manual</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          
+          {assignmentMode === "manual" && (
+            <div className="w-full sm:w-auto">
+              <Select
+                value={selectedAgentId}
+                onValueChange={setSelectedAgentId}
+              >
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Seleccionar agente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableAgents.map(agent => (
+                    <SelectItem 
+                      key={agent.id} 
+                      value={agent.id.toString()}
+                    >
+                      {agent.nombre}
+                    </SelectItem>
+                  ))}
+                  {availableAgents.length === 0 && (
+                    <SelectItem value="no-available" disabled>
+                      No hay agentes disponibles
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           )}
           
-          <Button onClick={handleCreateTask} className="ml-auto">
+          <Button onClick={handleCreateTask} className="w-full sm:w-auto sm:ml-auto">
             Crear Tarea
           </Button>
         </div>
