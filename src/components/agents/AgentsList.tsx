@@ -112,10 +112,10 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
 
   const handleReassignTask = async (taskId: number, newAgentId: number) => {
     const newAgent = agents.find(a => a.id === newAgentId);
-    if (!newAgent || !newAgent.available) {
+    if (!newAgent) {
       toast({
         title: "Error",
-        description: "El agente seleccionado no está disponible",
+        description: "El agente seleccionado no existe",
         variant: "destructive",
       });
       return;
@@ -266,15 +266,16 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
                           <SelectValue placeholder="Seleccionar nuevo agente" />
                         </SelectTrigger>
                         <SelectContent>
-                          {agents.map(a => (
-                            <SelectItem 
-                              key={a.id} 
-                              value={a.id.toString()}
-                              disabled={!a.available || a.id === agent.id}
-                            >
-                              {a.nombre} {!a.available ? "(Ocupado)" : ""}
-                            </SelectItem>
-                          ))}
+                          {agents
+                            .filter(a => isAgentInWorkingHours(a) && a.id !== agent.id)
+                            .map(a => (
+                              <SelectItem 
+                                key={a.id} 
+                                value={a.id.toString()}
+                              >
+                                {a.nombre} {!a.available ? "(Ocupado)" : ""}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     ) : (

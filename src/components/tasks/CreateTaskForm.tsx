@@ -25,8 +25,8 @@ export const CreateTaskForm = ({
   const [selectedAgentId, setSelectedAgentId] = useState<string>("auto");
   const queryClient = useQueryClient();
 
-  const availableAgents = agents.filter(agent => 
-    agent.available && isAgentInWorkingHours(agent)
+  const availableTimeAgents = agents.filter(agent => 
+    isAgentInWorkingHours(agent)
   );
 
   const handleCreateTask = async () => {
@@ -69,10 +69,10 @@ export const CreateTaskForm = ({
           return;
         }
 
-        if (!manuallySelectedAgent.available || !isAgentInWorkingHours(manuallySelectedAgent)) {
+        if (!isAgentInWorkingHours(manuallySelectedAgent)) {
           toast({
             title: "Error",
-            description: "El agente seleccionado no está disponible en este momento",
+            description: "El agente seleccionado está fuera de horario o en su hora de comida",
             variant: "destructive",
           });
           return;
@@ -140,17 +140,17 @@ export const CreateTaskForm = ({
                   <SelectValue placeholder="Seleccionar agente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableAgents.map(agent => (
+                  {availableTimeAgents.map(agent => (
                     <SelectItem 
                       key={agent.id} 
                       value={agent.id.toString()}
                     >
-                      {agent.nombre}
+                      {agent.nombre} {!agent.available ? "(Ocupado)" : ""}
                     </SelectItem>
                   ))}
-                  {availableAgents.length === 0 && (
+                  {availableTimeAgents.length === 0 && (
                     <SelectItem value="no-available" disabled>
-                      No hay agentes disponibles
+                      No hay agentes en horario laboral
                     </SelectItem>
                   )}
                 </SelectContent>
