@@ -31,13 +31,10 @@ const Index = () => {
 
   useEffect(() => {
     const checkAndAssignPendingTasks = async () => {
-      // Obtener todas las tareas pendientes ordenadas por fecha de creación (más antiguas primero)
-      const pendingTasks = tasks
-        .filter(t => t.status === "pending")
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const pendingTasks = tasks.filter(t => t.status === "pending");
       
       if (pendingTasks.length > 0) {
-        // Primero intentamos asignar las tareas que tienen un agente específico
+        // Primero procesamos las tareas que tienen un agente específico asignado
         for (const task of pendingTasks) {
           if (task.assignedTo) {
             const assignedAgent = activeAgents.find(a => a.id === task.assignedTo);
@@ -58,7 +55,7 @@ const Index = () => {
           }
         }
 
-        // Si no hay tareas con agente específico o no se pudieron asignar,
+        // Solo si no hay tareas pendientes con agente específico o no se pudieron asignar,
         // procesamos las tareas sin agente asignado
         const unassignedTasks = pendingTasks.filter(t => !t.assignedTo);
         if (unassignedTasks.length > 0) {
@@ -69,9 +66,7 @@ const Index = () => {
             
             if (agent.available && isAgentInWorkingHours(agent)) {
               try {
-                // Asignar la tarea pendiente más antigua (primera en el array ordenado)
-                const oldestTask = unassignedTasks[0];
-                await assignPendingTask(oldestTask.id, agent.id);
+                await assignPendingTask(unassignedTasks[0].id, agent.id);
                 setCurrentAgentIndex((availableAgentIndex + 1) % activeAgents.length);
                 queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
                 toast({
