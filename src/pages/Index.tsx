@@ -31,64 +31,51 @@ const Index = () => {
 
   useEffect(() => {
     const checkAndAssignPendingTasks = async () => {
-      // Primero, verificar qué agentes están disponibles y tienen tareas pendientes
-      const availableAgentsWithPendingTasks = activeAgents.filter(agent => {
-        const hasActiveTasks = tasks.some(t => 
-          t.assignedTo === agent.id && t.status === "active"
-        );
-        return agent.available && !hasActiveTasks && isAgentInWorkingHours(agent);
-      });
-
-      for (const agent of availableAgentsWithPendingTasks) {
-        // Obtener todas las tareas pendientes para este agente, ordenadas por fecha de creación
-        const agentPendingTasks = tasks
-          .filter(t => 
-            t.status === "pending" && 
-            t.assignedTo === agent.id
-          )
-          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-        if (agentPendingTasks.length > 0) {
-          // Tomar la tarea pendiente más antigua de este agente
-          const oldestTask = agentPendingTasks[0];
-          try {
-            await assignPendingTask(oldestTask.id, agent.id);
-            queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
-            toast({
-              title: "Tarea asignada",
-              description: `Tarea pendiente asignada a ${agent.nombre}`,
-            });
-            // Salir después de asignar una tarea para evitar múltiples asignaciones simultáneas
-            return;
-          } catch (error) {
-            console.error('Error asignando tarea pendiente:', error);
+      const pendingTasks = tasks.filter(t => t.status === "pending");
+      
+      if (pendingTasks.length > 0) {
+        // Primero procesamos las tareas que tienen un agente específico asignado
+        for (const task of pendingTasks) {
+          if (task.assignedTo) {
+            const assignedAgent = activeAgents.find(a => a.id === task.assignedTo);
+            if (assignedAgent && assignedAgent.available && isAgentInWorkingHours(assignedAgent)) {
+              try {
+                await assignPendingTask(task.id, assignedAgent.id);
+                queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+                toast({
+                  title: "Tarea asignada",
+                  description: `Tarea pendiente asignada a ${assignedAgent.nombre}`,
+                });
+                // Salimos después de asignar una tarea para evitar múltiples asignaciones simultáneas
+                return;
+              } catch (error) {
+                console.error('Error asignando tarea pendiente:', error);
+              }
+            }
           }
         }
-      }
 
-      // Solo si no hay tareas pendientes específicas para agentes,
-      // procesar tareas sin agente asignado
-      const unassignedTasks = tasks
-        .filter(t => t.status === "pending" && !t.assignedTo)
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-      if (unassignedTasks.length > 0) {
-        const availableAgentIndex = findNextAvailableAgent(activeAgents, currentAgentIndex);
-        
-        if (availableAgentIndex !== -1) {
-          const agent = activeAgents[availableAgentIndex];
+        // Solo si no hay tareas pendientes con agente específico o no se pudieron asignar,
+        // procesamos las tareas sin agente asignado
+        const unassignedTasks = pendingTasks.filter(t => !t.assignedTo);
+        if (unassignedTasks.length > 0) {
+          const availableAgentIndex = findNextAvailableAgent(activeAgents, currentAgentIndex);
           
-          if (agent.available && isAgentInWorkingHours(agent)) {
-            try {
-              await assignPendingTask(unassignedTasks[0].id, agent.id);
-              setCurrentAgentIndex((availableAgentIndex + 1) % activeAgents.length);
-              queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
-              toast({
-                title: "Tarea asignada automáticamente",
-                description: `Tarea pendiente asignada a ${agent.nombre}`,
-              });
-            } catch (error) {
-              console.error('Error asignando tarea pendiente:', error);
+          if (availableAgentIndex !== -1) {
+            const agent = activeAgents[availableAgentIndex];
+            
+            if (agent.available && isAgentInWorkingHours(agent)) {
+              try {
+                await assignPendingTask(unassignedTasks[0].id, agent.id);
+                setCurrentAgentIndex((availableAgentIndex + 1) % activeAgents.length);
+                queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+                toast({
+                  title: "Tarea asignada automáticamente",
+                  description: `Tarea pendiente asignada a ${agent.nombre}`,
+                });
+              } catch (error) {
+                console.error('Error asignando tarea pendiente:', error);
+              }
             }
           }
         }
