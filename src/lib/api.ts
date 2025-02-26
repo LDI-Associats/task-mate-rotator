@@ -11,7 +11,7 @@ export const fetchAgentsAndTasks = async () => {
   const { data: tasksData, error: tasksError } = await supabase
     .from('tarea')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: true });
 
   if (tasksError) throw tasksError;
 
@@ -26,17 +26,24 @@ export const fetchAgentsAndTasks = async () => {
     activo: agent.activo
   }));
 
-  const formattedTasks: Task[] = tasksData.map(task => ({
-    id: task.id,
-    description: task.tarea || '',
-    assignedTo: task.agente ? parseInt(task.agente) : null,
-    status: task.activo === '1' ? 'active' as const : 
-           task.activo === '2' ? 'cancelled' as const :
-           task.activo === '3' ? 'pending' as const : 'completed' as const,
-    created_at: task.created_at,
-    ultima_reasignacion: task.ultima_reasignacion,
-    contador_reasignaciones: task.contador_reasignaciones || 0
-  }));
+  console.log('Tareas sin procesar:', tasksData);
+
+  const formattedTasks: Task[] = tasksData.map(task => {
+    console.log('Fecha de creación de tarea:', task.created_at);
+    return {
+      id: task.id,
+      description: task.tarea || '',
+      assignedTo: task.agente ? parseInt(task.agente) : null,
+      status: task.activo === '1' ? 'active' as const : 
+             task.activo === '2' ? 'cancelled' as const :
+             task.activo === '3' ? 'pending' as const : 'completed' as const,
+      created_at: task.created_at,
+      ultima_reasignacion: task.ultima_reasignacion,
+      contador_reasignaciones: task.contador_reasignaciones || 0
+    };
+  });
+
+  console.log('Tareas ordenadas:', formattedTasks);
 
   formattedTasks.forEach(task => {
     if (task.status === 'active' && task.assignedTo) {
@@ -56,7 +63,7 @@ export const createTask = async (taskDescription: string, agentId?: number, isPe
     .insert([{
       tarea: taskDescription,
       agente: agentId?.toString() || null,
-      activo: isPending ? '3' : agentId ? '1' : '3' // '3' para tareas pendientes
+      activo: isPending ? '3' : agentId ? '1' : '3'
     }])
     .select()
     .single();
@@ -116,7 +123,7 @@ export const assignPendingTask = async (taskId: number, agentId: number) => {
       activo: '1'
     })
     .eq('id', taskId)
-    .eq('activo', '3'); // Solo asignar si aún está pendiente
+    .eq('activo', '3');
 
   if (error) throw error;
 };
