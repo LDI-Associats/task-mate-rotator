@@ -31,8 +31,11 @@ const Index = () => {
 
   useEffect(() => {
     const checkAndAssignPendingTasks = async () => {
-      const pendingTasks = tasks.filter(t => t.status === "pending");
-      
+      // Obtener tareas pendientes ordenadas por fecha de creación (más recientes primero - FILO)
+      const pendingTasks = tasks
+        .filter(t => t.status === "pending")
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
       if (pendingTasks.length > 0) {
         const availableAgentIndex = findNextAvailableAgent(activeAgents, currentAgentIndex);
         
@@ -41,7 +44,9 @@ const Index = () => {
           
           if (agent.available && isAgentInWorkingHours(agent)) {
             try {
-              await assignPendingTask(pendingTasks[0].id, agent.id);
+              // Tomar la tarea más reciente (primera en el array ordenado)
+              const latestTask = pendingTasks[0];
+              await assignPendingTask(latestTask.id, agent.id);
               setCurrentAgentIndex((availableAgentIndex + 1) % activeAgents.length);
               queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
               toast({
