@@ -31,9 +31,9 @@ const Index = () => {
 
   useEffect(() => {
     const checkAndAssignPendingTasks = async () => {
-      // Obtener tareas pendientes ordenadas por fecha de creación (más antiguas primero - FIFO)
+      // Obtener solo las tareas que fueron creadas como pendientes (sin asignación manual previa)
       const pendingTasks = tasks
-        .filter(t => t.status === "pending")
+        .filter(t => t.status === "pending" && !t.assignedTo)
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
       if (pendingTasks.length > 0) {
