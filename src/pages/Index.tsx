@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -9,10 +10,8 @@ import { AgentsList } from "@/components/agents/AgentsList";
 import { TasksList } from "@/components/tasks/TasksList";
 import { findNextAvailableAgent, isAgentInWorkingHours } from "@/utils/agent-utils";
 import { toast } from "@/components/ui/use-toast";
-import { useAuth } from "@/lib/auth";
 
 const Index = () => {
-  const { user } = useAuth();
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
   const queryClient = useQueryClient();
 
@@ -120,10 +119,6 @@ const Index = () => {
     };
   }, [queryClient]);
 
-  if (!user) {
-    return null;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-8">
@@ -139,19 +134,15 @@ const Index = () => {
           </Button>
         </div>
         
-        {user.tipo_perfil === 'Mesa' && (
-          <CreateTaskForm 
-            agents={activeAgents}
-            currentAgentIndex={currentAgentIndex}
-            onAgentIndexChange={setCurrentAgentIndex}
-          />
-        )}
+        <CreateTaskForm 
+          agents={activeAgents}
+          currentAgentIndex={currentAgentIndex}
+          onAgentIndexChange={setCurrentAgentIndex}
+        />
         
         <AgentsList agents={activeAgents} tasks={tasks} />
         
-        {user.tipo_perfil === 'Mesa' && (
-          <TasksList tasks={tasks} agents={agents} />
-        )}
+        <TasksList tasks={tasks} agents={agents} />
       </div>
     </div>
   );
