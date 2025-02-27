@@ -23,6 +23,7 @@ import { isAgentInWorkingHours } from "@/utils/agent-utils";
 import { completeTask, cancelTask, reassignTask, assignPendingTask } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/auth";
 
 interface AgentsListProps {
   agents: Agent[];
@@ -47,6 +48,7 @@ const formatActiveTime = (startTime: string): string => {
 
 export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [reassigningTaskId, setReassigningTaskId] = useState<number | null>(null);
   const [activeTimes, setActiveTimes] = useState<{ [key: number]: string }>({});
   const [confirmDialog, setConfirmDialog] = useState<ConfirmationDialogState>({
@@ -205,6 +207,11 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
     }
   };
 
+  const canManageTask = (agentId: number) => {
+    if (!user) return false;
+    return user.tipo_perfil === 'Mesa' || user.id === agentId;
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
       <h2 className="text-xl font-semibold mb-4">Estado de Agentes</h2>
@@ -249,7 +256,7 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
                 </div>
               )}
 
-              {activeTask && (
+              {activeTask && canManageTask(agent.id) && (
                 <div className="space-y-2">
                   <div className="space-y-1">
                     <p className="text-sm text-gray-600">Tarea actual: {activeTask.description}</p>
@@ -279,37 +286,41 @@ export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
                     >
                       Cancelar Tarea
                     </Button>
-                    {reassigningTaskId === activeTask.id ? (
-                      <Select
-                        onValueChange={(value) => {
-                          handleReassignTask(activeTask.id, parseInt(value));
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar nuevo agente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {agents
-                            .filter(a => isAgentInWorkingHours(a) && a.id !== agent.id)
-                            .map(a => (
-                              <SelectItem 
-                                key={a.id} 
-                                value={a.id.toString()}
-                              >
-                                {a.nombre} {!a.available ? "(Ocupado)" : ""}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setReassigningTaskId(activeTask.id)}
-                        className="w-full"
-                      >
-                        Reasignar Tarea
-                      </Button>
+                    {user.tipo_perfil === 'Mesa' && (
+                      <>
+                        {reassigningTaskId === activeTask.id ? (
+                          <Select
+                            onValueChange={(value) => {
+                              handleReassignTask(activeTask.id, parseInt(value));
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar nuevo agente" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {agents
+                                .filter(a => isAgentInWorkingHours(a) && a.id !== agent.id)
+                                .map(a => (
+                                  <SelectItem 
+                                    key={a.id} 
+                                    value={a.id.toString()}
+                                  >
+                                    {a.nombre} {!a.available ? "(Ocupado)" : ""}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setReassigningTaskId(activeTask.id)}
+                            className="w-full"
+                          >
+                            Reasignar Tarea
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

@@ -8,6 +8,8 @@ export interface Agent {
   salida_horario_comida: string;
   available: boolean;
   activo: boolean;
+  email: string;
+  tipo_perfil: 'Agente' | 'Mesa';
 }
 
 export interface Task {
@@ -29,4 +31,7 @@ export interface CreateAgentData {
   entrada_horario_comida: string;
   salida_horario_comida: string;
   activo: boolean;
+  email: string;
+  password: string;
+  tipo_perfil: 'Agente' | 'Mesa';
 }
