@@ -38,47 +38,48 @@ const Index = () => {
 
       if (availableAgents.length === 0) return;
 
-      for (const agent of availableAgents) {
-        // Primero verificamos si el agente tiene tareas pendientes asignadas específicamente a él
-        const agentPendingTasks = tasks
-          .filter(t => 
-            t.status === "pending" && 
-            t.assignedTo === agent.id
-          )
-          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      // Ordenamos todas las tareas pendientes por fecha de creación (FIFO)
+      const allPendingTasks = tasks
+        .filter(t => t.status === "pending")
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-        if (agentPendingTasks.length > 0) {
-          // Si el agente tiene tareas pendientes asignadas, le asignamos la más antigua
+      if (allPendingTasks.length === 0) return;
+
+      for (const agent of availableAgents) {
+        // Si el agente ya tiene una tarea activa, lo saltamos
+        if (!agent.available) continue;
+
+        // Primero buscamos si hay tareas específicamente asignadas a este agente
+        const agentSpecificTask = allPendingTasks.find(t => t.assignedTo === agent.id);
+
+        if (agentSpecificTask) {
           try {
-            const oldestTask = agentPendingTasks[0];
-            await assignPendingTask(oldestTask.id, agent.id);
+            await assignPendingTask(agentSpecificTask.id, agent.id);
             queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
             toast({
               title: "Tarea asignada automáticamente",
               description: `Tarea pendiente asignada a ${agent.nombre}`,
             });
-            continue; // Continuamos con el siguiente agente
+            break; // Importante: salimos después de asignar una tarea
           } catch (error) {
             console.error('Error asignando tarea pendiente:', error);
           }
-        }
-
-        // Si el agente no tiene tareas pendientes propias, buscamos en el pool general
-        const unassignedPendingTasks = tasks
-          .filter(t => t.status === "pending" && !t.assignedTo)
-          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-        if (unassignedPendingTasks.length > 0) {
-          try {
-            const oldestTask = unassignedPendingTasks[0];
-            await assignPendingTask(oldestTask.id, agent.id);
-            queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
-            toast({
-              title: "Tarea asignada automáticamente",
-              description: `Tarea pendiente asignada a ${agent.nombre}`,
-            });
-          } catch (error) {
-            console.error('Error asignando tarea pendiente:', error);
+        } else {
+          // Si no hay tareas específicas, buscamos la tarea sin asignar más antigua
+          const unassignedTask = allPendingTasks.find(t => !t.assignedTo);
+          
+          if (unassignedTask) {
+            try {
+              await assignPendingTask(unassignedTask.id, agent.id);
+              queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+              toast({
+                title: "Tarea asignada automáticamente",
+                description: `Tarea pendiente asignada a ${agent.nombre}`,
+              });
+              break; // Importante: salimos después de asignar una tarea
+            } catch (error) {
+              console.error('Error asignando tarea pendiente:', error);
+            }
           }
         }
       }
