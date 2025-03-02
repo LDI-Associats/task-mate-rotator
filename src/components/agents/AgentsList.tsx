@@ -18,16 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Agent, Task } from "@/types/task";
+import type { Agent, Task, AgentsListProps } from "@/types/task";
 import { isAgentInWorkingHours } from "@/utils/agent-utils";
 import { completeTask, cancelTask, reassignTask, assignPendingTask } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-
-interface AgentsListProps {
-  agents: Agent[];
-  tasks: Task[];
-}
 
 interface ConfirmationDialogState {
   isOpen: boolean;
@@ -45,7 +40,7 @@ const formatActiveTime = (startTime: string): string => {
   return `${diffInMinutes} minutos`;
 };
 
-export const AgentsList = ({ agents, tasks }: AgentsListProps) => {
+export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
   const queryClient = useQueryClient();
   const [reassigningTaskId, setReassigningTaskId] = useState<number | null>(null);
   const [activeTimes, setActiveTimes] = useState<{ [key: number]: string }>({});
