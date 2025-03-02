@@ -3,12 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAgentsAndTasks } from "@/lib/api";
 import { ManageAgents } from "@/components/agents/ManageAgents";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 
 const Agents = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+  
+  // Redirigir si no está autenticado
+  if (!loading && !isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
   
   // Redirigir si no es un usuario Mesa
   useEffect(() => {
@@ -23,6 +28,11 @@ const Agents = () => {
     queryKey: ['agents-and-tasks'],
     queryFn: fetchAgentsAndTasks,
   });
+
+  // Si no es un usuario Mesa, no mostrar la página
+  if (user && user.tipo_perfil !== "Mesa") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

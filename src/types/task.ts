@@ -1,4 +1,3 @@
-
 export interface Agent {
   id: number;
   nombre: string;
@@ -47,4 +46,10 @@ export interface AuthState {
   isAuthenticated: boolean;
   user: Agent | null;
   loading: boolean;
+}
+
+export interface AgentsListProps {
+  agents: Agent[];
+  tasks: Task[];
+  currentUser?: Agent | null;
 }

@@ -11,11 +11,17 @@ import { TasksList } from "@/components/tasks/TasksList";
 import { findNextAvailableAgent, isAgentInWorkingHours } from "@/utils/agent-utils";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 
 const Index = () => {
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
+
+  // Redirigir al login si no está autenticado
+  if (!loading && !isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
 
   const { 
     data: { agents = [], tasks = [] } = {}, 

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import type { Agent, Task, CreateAgentData } from "@/types/task";
 
@@ -138,7 +137,8 @@ export const createAgent = async (data: CreateAgentData) => {
     const { password, ...restData } = data;
     const { error } = await supabase
       .from('agentes')
-      .insert([restData]);
+      .update(restData)
+      .eq('id', data.id);
     
     if (error) throw error;
     return;
@@ -146,7 +146,7 @@ export const createAgent = async (data: CreateAgentData) => {
 
   const { error } = await supabase
     .from('agentes')
-    .insert([data]);
+    .insert(data);
 
   if (error) throw error;
 };
@@ -179,4 +179,29 @@ export const deleteAgent = async (id: number) => {
     .eq('id', id);
 
   if (error) throw error;
+};
+
+export const loginUser = async (email: string, password: string) => {
+  const { data, error } = await supabase
+    .from('agentes')
+    .select('*')
+    .eq('email', email)
+    .eq('password', password)
+    .single();
+
+  if (error) throw error;
+  
+  return data ? {
+    id: data.id,
+    nombre: data.nombre || '',
+    entrada_laboral: data.entrada_laboral || '',
+    salida_laboral: data.salida_laboral || '',
+    entrada_horario_comida: data.entrada_horario_comida || '',
+    salida_horario_comida: data.salida_horario_comida || '',
+    available: true,
+    activo: data.activo,
+    email: data.email || '',
+    password: data.password || '',
+    tipo_perfil: data.tipo_perfil as "Agente" | "Mesa"
+  } : null;
 };
