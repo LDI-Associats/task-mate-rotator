@@ -23,6 +23,15 @@ import { isAgentInWorkingHours } from "@/utils/agent-utils";
 import { completeTask, cancelTask, reassignTask, assignPendingTask } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface ConfirmationDialogState {
   isOpen: boolean;
@@ -50,6 +59,13 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
     agentId: null,
     type: null
   });
+  const [pendingDialogOpen, setPendingDialogOpen] = useState(false);
+
+  const agentsToDisplay = agents.filter(agent => agent.tipo_perfil === "Agente");
+
+  const userPendingTasks = tasks.filter(
+    task => task.assignedTo === currentUser?.id && task.status === "pending"
+  );
 
   useEffect(() => {
     const updateActiveTimes = () => {
@@ -200,11 +216,94 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
     }
   };
 
+  const canInteractWithTask = (taskAssignedToId: number | null): boolean => {
+    if (!currentUser) return false;
+    if (currentUser.tipo_perfil === "Mesa") return true;
+    return taskAssignedToId === currentUser.id;
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-      <h2 className="text-xl font-semibold mb-4">Estado de Agentes</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">Estado de Agentes</h2>
+        
+        {currentUser?.tipo_perfil === "Agente" && userPendingTasks.length > 0 && (
+          <Dialog open={pendingDialogOpen} onOpenChange={setPendingDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                Gestionar Tareas Pendientes ({userPendingTasks.length})
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Tareas Pendientes</DialogTitle>
+                <DialogDescription>
+                  Gestione sus tareas pendientes en la cola
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 max-h-[400px] overflow-y-auto py-4">
+                {userPendingTasks.map(task => (
+                  <div key={task.id} className="border p-3 rounded-md space-y-2">
+                    <div className="flex justify-between">
+                      <div>
+                        <p className="font-medium">{task.description}</p>
+                        <p className="text-sm text-gray-500">
+                          Creado: {new Date(task.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <Badge variant="secondary">Pendiente</Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => {
+                          setPendingDialogOpen(false);
+                          handleCancelTask(task.id, currentUser.id);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      {task.assignedTo === currentUser.id && (
+                        <Select
+                          onValueChange={(value) => {
+                            setPendingDialogOpen(false);
+                            handleReassignTask(task.id, parseInt(value));
+                          }}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Reasignar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {agents
+                              .filter(a => isAgentInWorkingHours(a) && a.id !== currentUser.id && a.tipo_perfil === "Agente")
+                              .map(a => (
+                                <SelectItem 
+                                  key={a.id} 
+                                  value={a.id.toString()}
+                                >
+                                  {a.nombre} {!a.available ? "(Ocupado)" : ""}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPendingDialogOpen(false)}>
+                  Cerrar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {agents.map((agent) => {
+        {agentsToDisplay.map((agent) => {
           const activeTask = tasks.find(
             (t) => t.assignedTo === agent.id && t.status === "active"
           );
@@ -214,6 +313,7 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
           const isInWorkingHours = isAgentInWorkingHours(agent);
           const now = new Date();
           const currentTime = now.toLocaleTimeString('en-US', { hour12: false });
+          const canInteract = canInteractWithTask(agent.id);
           
           return (
             <div
@@ -257,56 +357,59 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCompleteTask(activeTask.id, agent.id)}
-                      className="w-full"
-                    >
-                      Completar Tarea
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleCancelTask(activeTask.id, agent.id)}
-                      className="w-full"
-                    >
-                      Cancelar Tarea
-                    </Button>
-                    {reassigningTaskId === activeTask.id ? (
-                      <Select
-                        onValueChange={(value) => {
-                          handleReassignTask(activeTask.id, parseInt(value));
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar nuevo agente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {agents
-                            .filter(a => isAgentInWorkingHours(a) && a.id !== agent.id)
-                            .map(a => (
-                              <SelectItem 
-                                key={a.id} 
-                                value={a.id.toString()}
-                              >
-                                {a.nombre} {!a.available ? "(Ocupado)" : ""}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
+                  
+                  {canInteract && (
+                    <div className="flex flex-col gap-2">
                       <Button
-                        variant="secondary"
+                        variant="outline"
                         size="sm"
-                        onClick={() => setReassigningTaskId(activeTask.id)}
+                        onClick={() => handleCompleteTask(activeTask.id, agent.id)}
                         className="w-full"
                       >
-                        Reasignar Tarea
+                        Completar Tarea
                       </Button>
-                    )}
-                  </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleCancelTask(activeTask.id, agent.id)}
+                        className="w-full"
+                      >
+                        Cancelar Tarea
+                      </Button>
+                      {reassigningTaskId === activeTask.id ? (
+                        <Select
+                          onValueChange={(value) => {
+                            handleReassignTask(activeTask.id, parseInt(value));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar nuevo agente" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {agents
+                              .filter(a => a.tipo_perfil === "Agente" && isAgentInWorkingHours(a) && a.id !== agent.id)
+                              .map(a => (
+                                <SelectItem 
+                                  key={a.id} 
+                                  value={a.id.toString()}
+                                >
+                                  {a.nombre} {!a.available ? "(Ocupado)" : ""}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setReassigningTaskId(activeTask.id)}
+                          className="w-full"
+                        >
+                          Reasignar Tarea
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

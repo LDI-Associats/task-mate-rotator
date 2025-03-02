@@ -28,20 +28,29 @@ export const isAgentInWorkingHours = (agent: Agent): boolean => {
                         currentMinutes24 <= workEndMinutes;
   
   // Agent is available if it's within working hours but not during lunch break
-  // AND the agent is active
-  return isWorkingHours && !isLunchBreak && agent.activo;
+  // AND the agent is active AND is of "Agente" profile type
+  return isWorkingHours && !isLunchBreak && agent.activo && agent.tipo_perfil === "Agente";
 };
 
 export const findNextAvailableAgent = (agents: Agent[], currentIndex: number): number => {
   let availableAgentIndex = -1;
   let checkCount = 0;
   
-  while (checkCount < agents.length) {
-    const indexToCheck = (currentIndex + checkCount) % agents.length;
-    const agent = agents[indexToCheck];
+  // Filter to only include "Agente" profile type before finding the next available agent
+  const eligibleAgents = agents.filter(agent => agent.tipo_perfil === "Agente");
+  
+  if (eligibleAgents.length === 0) {
+    return -1;
+  }
+  
+  while (checkCount < eligibleAgents.length) {
+    // Adjust the index calculation to account for the filtered array
+    const indexToCheck = (currentIndex + checkCount) % eligibleAgents.length;
+    const agent = eligibleAgents[indexToCheck];
     
     if (agent.available && isAgentInWorkingHours(agent) && agent.activo) {
-      availableAgentIndex = indexToCheck;
+      // Convert back to index in the original agents array
+      availableAgentIndex = agents.findIndex(a => a.id === agent.id);
       break;
     }
     checkCount++;

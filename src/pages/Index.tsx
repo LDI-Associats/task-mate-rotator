@@ -153,7 +153,7 @@ const Index = () => {
           />
         )}
         
-        {/* Pasar el usuario actual y tipo de perfil a los componentes */}
+        {/* Pasar el usuario actual a los componentes */}
         <AgentsList 
           agents={activeAgents} 
           tasks={tasks} 

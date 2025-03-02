@@ -60,13 +60,13 @@ export const fetchAgentsAndTasks = async () => {
   return { agents: formattedAgents, tasks: formattedTasks };
 };
 
-export const createTask = async (taskDescription: string, agentId?: number, isPending: boolean = false) => {
+export const createTask = async (taskDescription: string, agentId?: number, forcePending: boolean = false) => {
   const { data, error } = await supabase
     .from('tarea')
     .insert([{
       tarea: taskDescription,
       agente: agentId?.toString() || null,
-      activo: isPending ? '3' : agentId ? '1' : '3'
+      activo: forcePending ? '3' : agentId ? '1' : '3'
     }])
     .select()
     .single();
