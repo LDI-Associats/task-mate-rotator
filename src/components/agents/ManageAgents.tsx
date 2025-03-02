@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, UserCircle2, Trash2, Plus } from "lucide-react";
+import { Clock, UserCircle2, Trash2, Plus, Mail, Lock, UserCog } from "lucide-react";
 
 interface ManageAgentsProps {
   agents: Agent[];
@@ -32,7 +32,10 @@ export const ManageAgents = ({ agents }: ManageAgentsProps) => {
     salida_laboral: "",
     entrada_horario_comida: "",
     salida_horario_comida: "",
-    activo: true
+    activo: true,
+    email: "",
+    password: "",
+    tipo_perfil: "Agente"
   });
   const queryClient = useQueryClient();
 
@@ -103,7 +106,10 @@ export const ManageAgents = ({ agents }: ManageAgentsProps) => {
       salida_laboral: "",
       entrada_horario_comida: "",
       salida_horario_comida: "",
-      activo: true
+      activo: true,
+      email: "",
+      password: "",
+      tipo_perfil: "Agente"
     });
   };
 
@@ -115,7 +121,10 @@ export const ManageAgents = ({ agents }: ManageAgentsProps) => {
       salida_laboral: formatTime(agent.salida_laboral),
       entrada_horario_comida: formatTime(agent.entrada_horario_comida),
       salida_horario_comida: formatTime(agent.salida_horario_comida),
-      activo: agent.activo
+      activo: agent.activo,
+      email: agent.email,
+      password: agent.password,
+      tipo_perfil: agent.tipo_perfil
     });
   };
 
@@ -151,6 +160,14 @@ export const ManageAgents = ({ agents }: ManageAgentsProps) => {
                     <div className="flex items-center gap-2">
                       <UserCircle2 className="h-4 w-4 text-gray-500" />
                       <h3 className="font-medium">{agent.nombre}</h3>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Mail className="h-3 w-3" />
+                      <span>{agent.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <UserCog className="h-3 w-3" />
+                      <span>{agent.tipo_perfil}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <Clock className="h-3 w-3" />
@@ -201,6 +218,50 @@ export const ManageAgents = ({ agents }: ManageAgentsProps) => {
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo Electrónico</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+                placeholder={selectedAgent ? "••••••••" : ""}
+              />
+              {selectedAgent && (
+                <p className="text-xs text-gray-500">
+                  Deja vacío para mantener la contraseña actual
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tipo_perfil">Tipo de Perfil</Label>
+              <Select
+                value={formData.tipo_perfil}
+                onValueChange={(value) => setFormData({ ...formData, tipo_perfil: value as "Agente" | "Mesa" })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar tipo de perfil" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Agente">Agente</SelectItem>
+                  <SelectItem value="Mesa">Mesa</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

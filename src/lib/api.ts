@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { Agent, Task, CreateAgentData } from "@/types/task";
 
@@ -23,7 +24,10 @@ export const fetchAgentsAndTasks = async () => {
     entrada_horario_comida: agent.entrada_horario_comida || '',
     salida_horario_comida: agent.salida_horario_comida || '',
     available: true,
-    activo: agent.activo
+    activo: agent.activo,
+    email: agent.email || '',
+    password: agent.password || '',
+    tipo_perfil: agent.tipo_perfil as "Agente" | "Mesa"
   }));
 
   console.log('Tareas sin procesar:', tasksData);
@@ -129,6 +133,17 @@ export const assignPendingTask = async (taskId: number, agentId: number) => {
 };
 
 export const createAgent = async (data: CreateAgentData) => {
+  // Si se mantiene la contraseña vacía en modo edición, no actualizarla
+  if (data.password === "" && data.id) {
+    const { password, ...restData } = data;
+    const { error } = await supabase
+      .from('agentes')
+      .insert([restData]);
+    
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase
     .from('agentes')
     .insert([data]);
@@ -137,6 +152,18 @@ export const createAgent = async (data: CreateAgentData) => {
 };
 
 export const updateAgent = async (id: number, data: CreateAgentData) => {
+  // Si se mantiene la contraseña vacía en modo edición, no actualizarla
+  if (data.password === "") {
+    const { password, ...restData } = data;
+    const { error } = await supabase
+      .from('agentes')
+      .update(restData)
+      .eq('id', id);
+    
+    if (error) throw error;
+    return;
+  }
+
   const { error } = await supabase
     .from('agentes')
     .update(data)

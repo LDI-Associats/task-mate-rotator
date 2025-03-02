@@ -13,32 +13,41 @@ export type Database = {
         Row: {
           activo: boolean | null
           created_at: string
+          email: string
           entrada_horario_comida: string | null
           entrada_laboral: string | null
           id: number
           nombre: string | null
+          password: string
           salida_horario_comida: string | null
           salida_laboral: string | null
+          tipo_perfil: string
         }
         Insert: {
           activo?: boolean | null
           created_at?: string
+          email: string
           entrada_horario_comida?: string | null
           entrada_laboral?: string | null
           id?: number
           nombre?: string | null
+          password: string
           salida_horario_comida?: string | null
           salida_laboral?: string | null
+          tipo_perfil?: string
         }
         Update: {
           activo?: boolean | null
           created_at?: string
+          email?: string
           entrada_horario_comida?: string | null
           entrada_laboral?: string | null
           id?: number
           nombre?: string | null
+          password?: string
           salida_horario_comida?: string | null
           salida_laboral?: string | null
+          tipo_perfil?: string
         }
         Relationships: []
       }

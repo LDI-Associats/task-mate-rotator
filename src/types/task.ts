@@ -8,6 +8,9 @@ export interface Agent {
   salida_horario_comida: string;
   available: boolean;
   activo: boolean;
+  email: string;
+  password: string;
+  tipo_perfil: "Agente" | "Mesa";
 }
 
 export interface Task {
@@ -23,10 +26,25 @@ export interface Task {
 export type AssignmentMode = "auto" | "manual";
 
 export interface CreateAgentData {
+  id?: number;
   nombre: string;
   entrada_laboral: string;
   salida_laboral: string;
   entrada_horario_comida: string;
   salida_horario_comida: string;
   activo: boolean;
+  email: string;
+  password: string;
+  tipo_perfil: "Agente" | "Mesa";
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: Agent | null;
+  loading: boolean;
 }

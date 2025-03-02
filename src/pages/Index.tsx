@@ -10,10 +10,12 @@ import { AgentsList } from "@/components/agents/AgentsList";
 import { TasksList } from "@/components/tasks/TasksList";
 import { findNextAvailableAgent, isAgentInWorkingHours } from "@/utils/agent-utils";
 import { toast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { 
     data: { agents = [], tasks = [] } = {}, 
@@ -119,6 +121,8 @@ const Index = () => {
     };
   }, [queryClient]);
 
+  const isMesa = user?.tipo_perfil === "Mesa";
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-8">
@@ -134,15 +138,26 @@ const Index = () => {
           </Button>
         </div>
         
-        <CreateTaskForm 
-          agents={activeAgents}
-          currentAgentIndex={currentAgentIndex}
-          onAgentIndexChange={setCurrentAgentIndex}
+        {/* Solo mostrar el formulario de creación de tareas si es Mesa */}
+        {isMesa && (
+          <CreateTaskForm 
+            agents={activeAgents}
+            currentAgentIndex={currentAgentIndex}
+            onAgentIndexChange={setCurrentAgentIndex}
+          />
+        )}
+        
+        {/* Pasar el usuario actual y tipo de perfil a los componentes */}
+        <AgentsList 
+          agents={activeAgents} 
+          tasks={tasks} 
+          currentUser={user} 
         />
         
-        <AgentsList agents={activeAgents} tasks={tasks} />
-        
-        <TasksList tasks={tasks} agents={agents} />
+        {/* Solo mostrar la lista de tareas si es Mesa */}
+        {isMesa && (
+          <TasksList tasks={tasks} agents={agents} />
+        )}
       </div>
     </div>
   );
