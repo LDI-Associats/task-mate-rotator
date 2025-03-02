@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +57,7 @@ export const CreateTaskForm = ({
         } else {
           const selectedAgent = agents[availableAgentIndex];
           
-          // Direct assignment bypasses the pending queue and forces assignment to an agent
+          // FIXED: For "direct" assignment type, always force pending status
           const forcePending = assignmentType === "direct";
           
           await createTask(taskDescription, selectedAgent.id, forcePending);
@@ -66,9 +65,7 @@ export const CreateTaskForm = ({
           
           toast({
             title: "Tarea creada",
-            description: forcePending 
-              ? `Tarea agregada a la cola de ${selectedAgent.nombre}`
-              : `Tarea asignada a ${selectedAgent.nombre}`,
+            description: `Tarea agregada a la cola de ${selectedAgent.nombre}`,
           });
         }
       } else {
@@ -92,17 +89,14 @@ export const CreateTaskForm = ({
           return;
         }
 
-        // For manual assignment, check if "direct" assignment type is selected, or if agent is busy
-        const isAgentBusy = !manuallySelectedAgent.available;
-        const forcePending = assignmentType === "direct" || isAgentBusy;
+        // FIXED: For manual assignment, use direct assignment type to force pending status
+        const forcePending = assignmentType === "direct" || !manuallySelectedAgent.available;
         
         await createTask(taskDescription, manuallySelectedAgent.id, forcePending);
         
         toast({
           title: "Tarea creada",
-          description: forcePending 
-            ? `Tarea agregada a la cola de ${manuallySelectedAgent.nombre}`
-            : `Tarea asignada a ${manuallySelectedAgent.nombre}`,
+          description: `Tarea agregada a la cola de ${manuallySelectedAgent.nombre}`,
         });
       }
 

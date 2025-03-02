@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import type { Agent, Task, CreateAgentData } from "@/types/task";
 
@@ -61,6 +62,9 @@ export const fetchAgentsAndTasks = async () => {
 };
 
 export const createTask = async (taskDescription: string, agentId?: number, forcePending: boolean = false) => {
+  // When forcePending is true, always set activo to '3' (pending)
+  // When agentId is provided and forcePending is false, set activo to '1' (active)
+  // When no agentId is provided, set activo to '3' (pending)
   const { data, error } = await supabase
     .from('tarea')
     .insert([{
