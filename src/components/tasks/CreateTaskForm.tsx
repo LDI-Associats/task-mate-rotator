@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +58,7 @@ export const CreateTaskForm = ({
         } else {
           const selectedAgent = agents[availableAgentIndex];
           
-          // FIXED: For "direct" assignment type, always force pending status
+          // Para asignación "directa" en modo automático, forzar estado pendiente solo si es de tipo "direct"
           const forcePending = assignmentType === "direct";
           
           await createTask(taskDescription, selectedAgent.id, forcePending);
@@ -89,7 +90,7 @@ export const CreateTaskForm = ({
           return;
         }
 
-        // FIXED: For manual assignment, use direct assignment type to force pending status
+        // Para asignación manual, forzar estado pendiente si es de tipo "direct" o si el agente no está disponible
         const forcePending = assignmentType === "direct" || !manuallySelectedAgent.available;
         
         await createTask(taskDescription, manuallySelectedAgent.id, forcePending);

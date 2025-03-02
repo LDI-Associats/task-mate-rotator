@@ -12,7 +12,7 @@ export const fetchAgentsAndTasks = async () => {
   const { data: tasksData, error: tasksError } = await supabase
     .from('tarea')
     .select('*')
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false }); // Cambiado a false para ordenar de más reciente a más antigua
 
   if (tasksError) throw tasksError;
 
