@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -349,16 +348,14 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
                     <p className="text-sm text-yellow-800">
                       {pendingTasks.length} {pendingTasks.length === 1 ? 'tarea pendiente' : 'tareas pendientes'} en cola
                     </p>
-                    {isCurrentUserAgent && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setPendingDialogOpen(true)}
-                        className="text-xs h-7 px-2"
-                      >
-                        Ver tareas
-                      </Button>
-                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setPendingDialogOpen(true)}
+                      className="text-xs h-7 px-2"
+                    >
+                      Ver tareas
+                    </Button>
                   </div>
                 </div>
               )}
