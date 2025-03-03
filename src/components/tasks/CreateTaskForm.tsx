@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/use-toast";
 import { createTask } from "@/lib/api";
 import type { Agent, AssignmentMode } from "@/types/task";
-import { findNextAvailableAgent, isAgentInWorkingHours } from "@/utils/agent-utils";
+import { findNextAvailableAgent, findNextAgentIgnoringAvailability, isAgentInWorkingHours } from "@/utils/agent-utils";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface CreateTaskFormProps {
@@ -15,7 +14,6 @@ interface CreateTaskFormProps {
   onAgentIndexChange: (index: number) => void;
 }
 
-// Task assignment type
 type TaskAssignmentType = "availability" | "direct";
 
 export const CreateTaskForm = ({
@@ -29,7 +27,6 @@ export const CreateTaskForm = ({
   const [assignmentType, setAssignmentType] = useState<TaskAssignmentType>("availability");
   const queryClient = useQueryClient();
 
-  // Filter agents: only show agents with "Agente" profile type who are in working hours
   const availableAgents = agents.filter(agent => 
     isAgentInWorkingHours(agent) && agent.tipo_perfil === "Agente"
   );
@@ -46,31 +43,49 @@ export const CreateTaskForm = ({
 
     try {
       if (assignmentMode === "auto") {
-        const availableAgentIndex = findNextAvailableAgent(agents, currentAgentIndex);
-        
-        if (availableAgentIndex === -1) {
-          // No available agents, add to the pending queue
-          await createTask(taskDescription);
+        if (assignmentType === "direct") {
+          const forcedAgentIndex = findNextAgentIgnoringAvailability(agents, currentAgentIndex);
+          
+          if (forcedAgentIndex === -1) {
+            toast({
+              title: "Error",
+              description: "No hay agentes en horario laboral para asignar la tarea",
+              variant: "destructive",
+            });
+            return;
+          }
+          
+          const selectedAgent = agents[forcedAgentIndex];
+          
+          await createTask(taskDescription, selectedAgent.id, true);
+          onAgentIndexChange((forcedAgentIndex + 1) % agents.length);
+          
           toast({
             title: "Tarea creada",
-            description: "La tarea ha sido agregada a la cola de pendientes",
+            description: `Tarea asignada directamente a ${selectedAgent.nombre} (pendiente)`,
           });
         } else {
-          const selectedAgent = agents[availableAgentIndex];
+          const availableAgentIndex = findNextAvailableAgent(agents, currentAgentIndex);
           
-          // Para asignación "directa" en modo automático, forzar estado pendiente solo si es de tipo "direct"
-          const forcePending = assignmentType === "direct";
-          
-          await createTask(taskDescription, selectedAgent.id, forcePending);
-          onAgentIndexChange((availableAgentIndex + 1) % agents.length);
-          
-          toast({
-            title: "Tarea creada",
-            description: `Tarea agregada a la cola de ${selectedAgent.nombre}`,
-          });
+          if (availableAgentIndex === -1) {
+            await createTask(taskDescription);
+            toast({
+              title: "Tarea creada",
+              description: "La tarea ha sido agregada a la cola de pendientes",
+            });
+          } else {
+            const selectedAgent = agents[availableAgentIndex];
+            
+            await createTask(taskDescription, selectedAgent.id, false);
+            onAgentIndexChange((availableAgentIndex + 1) % agents.length);
+            
+            toast({
+              title: "Tarea creada",
+              description: `Tarea agregada a la cola de ${selectedAgent.nombre}`,
+            });
+          }
         }
       } else {
-        // Manual assignment
         const manuallySelectedAgent = agents.find(a => a.id.toString() === selectedAgentId);
         if (!manuallySelectedAgent) {
           toast({
@@ -90,14 +105,14 @@ export const CreateTaskForm = ({
           return;
         }
 
-        // Para asignación manual, forzar estado pendiente si es de tipo "direct" o si el agente no está disponible
-        const forcePending = assignmentType === "direct" || !manuallySelectedAgent.available;
+        const forcePending = assignmentType === "direct" || 
+                            (assignmentType === "availability" && !manuallySelectedAgent.available);
         
         await createTask(taskDescription, manuallySelectedAgent.id, forcePending);
         
         toast({
           title: "Tarea creada",
-          description: `Tarea agregada a la cola de ${manuallySelectedAgent.nombre}`,
+          description: `Tarea ${assignmentType === "direct" ? "asignada directamente" : "agregada a la cola"} de ${manuallySelectedAgent.nombre}`,
         });
       }
 
@@ -128,7 +143,6 @@ export const CreateTaskForm = ({
           className="w-full"
         />
         <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-          {/* Assignment mode selector (auto vs manual) */}
           <div className="w-full sm:w-auto">
             <Select
               value={assignmentMode}
@@ -147,7 +161,6 @@ export const CreateTaskForm = ({
             </Select>
           </div>
           
-          {/* Assignment type selector (availability vs direct) */}
           <div className="w-full sm:w-auto">
             <Select
               value={assignmentType}
@@ -163,7 +176,6 @@ export const CreateTaskForm = ({
             </Select>
           </div>
           
-          {/* Agent selector (only shown in manual mode) */}
           {assignmentMode === "manual" && (
             <div className="w-full sm:w-auto">
               <Select

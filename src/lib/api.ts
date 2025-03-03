@@ -62,6 +62,8 @@ export const fetchAgentsAndTasks = async () => {
 };
 
 export const createTask = async (taskDescription: string, agentId?: number, forcePending: boolean = false) => {
+  console.log(`Creando tarea: ${taskDescription}, Agente: ${agentId}, forzarPendiente: ${forcePending}`);
+  
   // When forcePending is true, always set activo to '3' (pending)
   // When agentId is provided and forcePending is false, set activo to '1' (active)
   // When no agentId is provided, set activo to '3' (pending)

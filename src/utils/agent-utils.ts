@@ -58,3 +58,22 @@ export const findNextAvailableAgent = (agents: Agent[], currentIndex: number): n
   
   return availableAgentIndex;
 };
+
+// Nueva función: Encuentra un agente sin importar su disponibilidad
+export const findNextAgentIgnoringAvailability = (agents: Agent[], currentIndex: number): number => {
+  // Filter to only include "Agente" profile type and active agents
+  const eligibleAgents = agents.filter(agent => 
+    agent.tipo_perfil === "Agente" && agent.activo && isAgentInWorkingHours(agent)
+  );
+  
+  if (eligibleAgents.length === 0) {
+    return -1;
+  }
+  
+  // Simplemente toma el siguiente agente en la rotación, ignorando la disponibilidad
+  const indexToUse = currentIndex % eligibleAgents.length;
+  const agent = eligibleAgents[indexToUse];
+  
+  // Convert back to index in the original agents array
+  return agents.findIndex(a => a.id === agent.id);
+};
