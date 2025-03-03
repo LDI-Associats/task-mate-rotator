@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAgentsAndTasks } from "@/lib/api";
-import TasksList from "@/components/tasks/TasksList";
+import { TasksList } from "@/components/tasks/TasksList";
 import { CreateTaskForm } from "@/components/tasks/CreateTaskForm";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [currentAgentIndex, setCurrentAgentIndex] = useState(0);

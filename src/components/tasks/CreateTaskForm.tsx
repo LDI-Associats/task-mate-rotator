@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { createTask } from "@/lib/api";
-import type { Agent, AssignmentMode } from "@/types/task";
+import type { Agent, AssignmentMode, Task } from "@/types/task";
 import { 
   findNextAvailableAgent, 
   findNextAgentIgnoringAvailability, 
@@ -16,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface CreateTaskFormProps {
   agents: Agent[];
-  tasks: Agent[];  // Add tasks to props
+  tasks: Task[];  // Corrected type
   currentAgentIndex: number;
   onAgentIndexChange: (index: number) => void;
 }
