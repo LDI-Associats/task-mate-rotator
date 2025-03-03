@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +20,6 @@ const Index = () => {
   const queryClient = useQueryClient();
   const { user, isAuthenticated, loading } = useAuth();
 
-  // Redirigir al login si no está autenticado
   if (!loading && !isAuthenticated) {
     return <Navigate to="/login" />;
   }
@@ -37,24 +35,20 @@ const Index = () => {
     staleTime: 10000,
   });
 
-  // Filtrar agentes activos para las operaciones
   const activeAgents = agents.filter(agent => agent.activo);
 
-  // Count pending tasks for the current user
   const userPendingTasksCount = user ? tasks.filter(t => 
     t.status === "pending" && t.assignedTo === user.id
   ).length : 0;
 
   useEffect(() => {
     const checkAndAssignPendingTasks = async () => {
-      // Buscamos agentes que estén disponibles y en horario
       const availableAgents = activeAgents.filter(agent => 
         agent.available && isAgentInWorkingHours(agent)
       );
 
       if (availableAgents.length === 0) return;
 
-      // Ordenamos todas las tareas pendientes por fecha de creación (FIFO)
       const allPendingTasks = tasks
         .filter(t => t.status === "pending")
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -62,10 +56,8 @@ const Index = () => {
       if (allPendingTasks.length === 0) return;
 
       for (const agent of availableAgents) {
-        // Si el agente ya tiene una tarea activa, lo saltamos
         if (!agent.available) continue;
 
-        // Primero buscamos si hay tareas específicamente asignadas a este agente
         const agentSpecificTask = allPendingTasks.find(t => t.assignedTo === agent.id);
 
         if (agentSpecificTask) {
@@ -76,12 +68,11 @@ const Index = () => {
               title: "Tarea asignada automáticamente",
               description: `Tarea pendiente asignada a ${agent.nombre}`,
             });
-            break; // Importante: salimos después de asignar una tarea
+            break;
           } catch (error) {
             console.error('Error asignando tarea pendiente:', error);
           }
         } else {
-          // Si no hay tareas específicas, buscamos la tarea sin asignar más antigua
           const unassignedTask = allPendingTasks.find(t => !t.assignedTo);
           
           if (unassignedTask) {
@@ -92,7 +83,7 @@ const Index = () => {
                 title: "Tarea asignada automáticamente",
                 description: `Tarea pendiente asignada a ${agent.nombre}`,
               });
-              break; // Importante: salimos después de asignar una tarea
+              break;
             } catch (error) {
               console.error('Error asignando tarea pendiente:', error);
             }
@@ -171,7 +162,6 @@ const Index = () => {
           </div>
         </div>
         
-        {/* Solo mostrar el formulario de creación de tareas si es Mesa */}
         {isMesa && (
           <CreateTaskForm 
             agents={activeAgents}
@@ -180,19 +170,16 @@ const Index = () => {
           />
         )}
         
-        {/* Pasar el usuario actual a los componentes */}
         <AgentsList 
           agents={activeAgents} 
           tasks={tasks} 
           currentUser={user} 
         />
         
-        {/* Solo mostrar la lista de tareas si es Mesa */}
         {isMesa && (
           <TasksList tasks={tasks} agents={agents} />
         )}
 
-        {/* Modal for pending tasks - only for agents */}
         {isAgente && (
           <PendingTasksViewModal
             open={pendingTasksModalOpen}

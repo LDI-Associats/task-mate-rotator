@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { List } from "lucide-react";
 
 interface ConfirmationDialogState {
   isOpen: boolean;
@@ -231,7 +233,8 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
           <Dialog open={pendingDialogOpen} onOpenChange={setPendingDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
-                Gestionar Tareas Pendientes ({userPendingTasks.length})
+                <List className="h-4 w-4 mr-2" />
+                Tareas Pendientes ({userPendingTasks.length})
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
@@ -242,11 +245,14 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 max-h-[400px] overflow-y-auto py-4">
-                {userPendingTasks.map(task => (
+                {userPendingTasks.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map((task, index) => (
                   <div key={task.id} className="border p-3 rounded-md space-y-2">
                     <div className="flex justify-between">
                       <div>
                         <p className="font-medium">{task.description}</p>
+                        <p className="text-sm text-gray-500">
+                          Orden: #{index + 1} (FIFO)
+                        </p>
                         <p className="text-sm text-gray-500">
                           Creado: {new Date(task.created_at).toLocaleString()}
                         </p>
@@ -314,6 +320,7 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
           const now = new Date();
           const currentTime = now.toLocaleTimeString('en-US', { hour12: false });
           const canInteract = canInteractWithTask(agent.id);
+          const isCurrentUserAgent = currentUser?.id === agent.id;
           
           return (
             <div
@@ -338,9 +345,21 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
 
               {pendingTasks.length > 0 && (
                 <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-sm text-yellow-800">
-                    {pendingTasks.length} {pendingTasks.length === 1 ? 'tarea pendiente' : 'tareas pendientes'} en cola
-                  </p>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-yellow-800">
+                      {pendingTasks.length} {pendingTasks.length === 1 ? 'tarea pendiente' : 'tareas pendientes'} en cola
+                    </p>
+                    {isCurrentUserAgent && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setPendingDialogOpen(true)}
+                        className="text-xs h-7 px-2"
+                      >
+                        Ver tareas
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
 
