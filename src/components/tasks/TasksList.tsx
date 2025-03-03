@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Agent, Task } from "@/types/task";
 
-interface TasksListProps {
+export interface TasksListProps {
   tasks: Task[];
   agents: Agent[];
 }
