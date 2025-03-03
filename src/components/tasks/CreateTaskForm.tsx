@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,17 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/use-toast";
 import { createTask } from "@/lib/api";
 import type { Agent, AssignmentMode } from "@/types/task";
-import { 
-  findNextAvailableAgent, 
-  findNextAgentIgnoringAvailability, 
-  isAgentInWorkingHours,
-  findLeastLoadedAgent
-} from "@/utils/agent-utils";
+import { findNextAvailableAgent, findNextAgentIgnoringAvailability, isAgentInWorkingHours } from "@/utils/agent-utils";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface CreateTaskFormProps {
   agents: Agent[];
-  tasks: Agent[];  // Add tasks to props
   currentAgentIndex: number;
   onAgentIndexChange: (index: number) => void;
 }
@@ -25,7 +18,6 @@ type TaskAssignmentType = "availability" | "direct";
 
 export const CreateTaskForm = ({
   agents,
-  tasks,
   currentAgentIndex,
   onAgentIndexChange,
 }: CreateTaskFormProps) => {
@@ -52,10 +44,9 @@ export const CreateTaskForm = ({
     try {
       if (assignmentMode === "auto") {
         if (assignmentType === "direct") {
-          // Use the least loaded agent instead of the next in rotation
-          const leastLoadedAgentIndex = findLeastLoadedAgent(agents, tasks);
+          const forcedAgentIndex = findNextAgentIgnoringAvailability(agents, currentAgentIndex);
           
-          if (leastLoadedAgentIndex === -1) {
+          if (forcedAgentIndex === -1) {
             toast({
               title: "Error",
               description: "No hay agentes en horario laboral para asignar la tarea",
@@ -64,10 +55,10 @@ export const CreateTaskForm = ({
             return;
           }
           
-          const selectedAgent = agents[leastLoadedAgentIndex];
+          const selectedAgent = agents[forcedAgentIndex];
           
           await createTask(taskDescription, selectedAgent.id, true);
-          onAgentIndexChange((leastLoadedAgentIndex + 1) % agents.length);
+          onAgentIndexChange((forcedAgentIndex + 1) % agents.length);
           
           toast({
             title: "Tarea creada",

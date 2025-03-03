@@ -1,4 +1,5 @@
-import type { Agent, Task } from "@/types/task";
+
+import type { Agent } from "@/types/task";
 
 const parseTime = (timeStr: string): number => {
   if (!timeStr) return 0;
@@ -18,12 +19,16 @@ export const isAgentInWorkingHours = (agent: Agent): boolean => {
   const workStartMinutes = parseTime(agent.entrada_laboral);
   const workEndMinutes = parseTime(agent.salida_laboral);
   
+  // Check if current time is within lunch break
   const isLunchBreak = currentMinutes24 >= lunchStartMinutes && 
                       currentMinutes24 <= lunchEndMinutes;
   
+  // Check if current time is within working hours
   const isWorkingHours = currentMinutes24 >= workStartMinutes && 
                         currentMinutes24 <= workEndMinutes;
   
+  // Agent is available if it's within working hours but not during lunch break
+  // AND the agent is active AND is of "Agente" profile type
   return isWorkingHours && !isLunchBreak && agent.activo && agent.tipo_perfil === "Agente";
 };
 
@@ -31,6 +36,7 @@ export const findNextAvailableAgent = (agents: Agent[], currentIndex: number): n
   let availableAgentIndex = -1;
   let checkCount = 0;
   
+  // Filter to only include "Agente" profile type before finding the next available agent
   const eligibleAgents = agents.filter(agent => agent.tipo_perfil === "Agente");
   
   if (eligibleAgents.length === 0) {
@@ -38,10 +44,12 @@ export const findNextAvailableAgent = (agents: Agent[], currentIndex: number): n
   }
   
   while (checkCount < eligibleAgents.length) {
+    // Adjust the index calculation to account for the filtered array
     const indexToCheck = (currentIndex + checkCount) % eligibleAgents.length;
     const agent = eligibleAgents[indexToCheck];
     
     if (agent.available && isAgentInWorkingHours(agent) && agent.activo) {
+      // Convert back to index in the original agents array
       availableAgentIndex = agents.findIndex(a => a.id === agent.id);
       break;
     }
@@ -51,7 +59,9 @@ export const findNextAvailableAgent = (agents: Agent[], currentIndex: number): n
   return availableAgentIndex;
 };
 
+// Nueva función: Encuentra un agente sin importar su disponibilidad
 export const findNextAgentIgnoringAvailability = (agents: Agent[], currentIndex: number): number => {
+  // Filter to only include "Agente" profile type and active agents
   const eligibleAgents = agents.filter(agent => 
     agent.tipo_perfil === "Agente" && agent.activo && isAgentInWorkingHours(agent)
   );
@@ -60,36 +70,10 @@ export const findNextAgentIgnoringAvailability = (agents: Agent[], currentIndex:
     return -1;
   }
   
+  // Simplemente toma el siguiente agente en la rotación, ignorando la disponibilidad
   const indexToUse = currentIndex % eligibleAgents.length;
   const agent = eligibleAgents[indexToUse];
   
+  // Convert back to index in the original agents array
   return agents.findIndex(a => a.id === agent.id);
-};
-
-export const findLeastLoadedAgent = (agents: Agent[], tasks: Task[]): number => {
-  const eligibleAgents = agents.filter(agent => 
-    agent.tipo_perfil === "Agente" && agent.activo && isAgentInWorkingHours(agent)
-  );
-  
-  if (eligibleAgents.length === 0) {
-    return -1;
-  }
-  
-  const agentTaskCounts = eligibleAgents.map(agent => {
-    const activeTasks = tasks.filter(task => 
-      (task.status === 'active' || task.status === 'pending') && 
-      task.assignedTo === agent.id
-    ).length;
-    
-    return {
-      agentId: agent.id,
-      taskCount: activeTasks
-    };
-  });
-  
-  agentTaskCounts.sort((a, b) => a.taskCount - b.taskCount);
-  
-  const leastLoadedAgentId = agentTaskCounts[0].agentId;
-  
-  return agents.findIndex(a => a.id === leastLoadedAgentId);
 };
