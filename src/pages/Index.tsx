@@ -9,7 +9,7 @@ import { fetchAgentsAndTasks, assignPendingTask } from "@/lib/api";
 import { CreateTaskForm } from "@/components/tasks/CreateTaskForm";
 import { AgentsList } from "@/components/agents/AgentsList";
 import { TasksList } from "@/components/tasks/TasksList";
-import { PendingTasksModal } from "@/components/tasks/PendingTasksModal";
+import { PendingTasksViewModal } from "@/components/tasks/PendingTasksViewModal";
 import { findNextAvailableAgent, isAgentInWorkingHours } from "@/utils/agent-utils";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -194,7 +194,7 @@ const Index = () => {
 
         {/* Modal for pending tasks - only for agents */}
         {isAgente && (
-          <PendingTasksModal
+          <PendingTasksViewModal
             open={pendingTasksModalOpen}
             onOpenChange={setPendingTasksModalOpen}
             tasks={tasks}

@@ -1,6 +1,8 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { List } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -19,6 +21,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Input } from "@/components/ui/input";
+import { PendingTasksViewModal } from "./PendingTasksViewModal";
 import type { Agent, Task } from "@/types/task";
 
 interface TasksListProps {
@@ -29,6 +32,7 @@ interface TasksListProps {
 export const TasksList = ({ tasks, agents }: TasksListProps) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingTasksModalOpen, setPendingTasksModalOpen] = useState(false);
   const itemsPerPage = 20;
   
   const pendingTasks = tasks.filter(t => t.status === "pending").length;
@@ -63,10 +67,18 @@ export const TasksList = ({ tasks, agents }: TasksListProps) => {
       </div>
 
       {pendingTasks > 0 && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md flex justify-between items-center">
           <p className="text-yellow-800">
             Hay {pendingTasks} {pendingTasks === 1 ? 'tarea pendiente' : 'tareas pendientes'} en cola
           </p>
+          <Button 
+            variant="secondary"
+            size="sm"
+            onClick={() => setPendingTasksModalOpen(true)}
+          >
+            <List className="h-4 w-4 mr-2" />
+            Ver tareas pendientes
+          </Button>
         </div>
       )}
 
@@ -179,6 +191,13 @@ export const TasksList = ({ tasks, agents }: TasksListProps) => {
           </Pagination>
         </div>
       )}
+
+      <PendingTasksViewModal
+        open={pendingTasksModalOpen}
+        onOpenChange={setPendingTasksModalOpen}
+        tasks={tasks.filter(t => t.status === "pending")}
+        agents={agents}
+      />
     </div>
   );
 };
