@@ -65,9 +65,9 @@ export const PendingTasksViewModal = ({
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
-  // Ordenar tareas por fecha de creación (FIFO)
+  // Ordenar tareas por fecha de creación (del más reciente al más antiguo)
   const sortedTasks = [...tasks].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
   // Filtrar solo los agentes activos de tipo "Agente"
@@ -164,10 +164,8 @@ export const PendingTasksViewModal = ({
     displayTasks = displayTasks.filter(task => task.assignedTo === currentUser?.id);
   }
   
-  // Si showOnlyPending es true, mostrar solo tareas pendientes
-  if (showOnlyPending) {
-    displayTasks = displayTasks.filter(task => task.status === "pending");
-  }
+  // Mostrar solo tareas activas y pendientes, independientemente del valor de showOnlyPending
+  displayTasks = displayTasks.filter(task => task.status === "active" || task.status === "pending");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -203,7 +201,7 @@ export const PendingTasksViewModal = ({
                         variant={
                           task.status === "active" ? "default" : 
                           task.status === "pending" ? "secondary" : 
-                          task.status === "completed" ? "success" : "destructive"
+                          task.status === "completed" ? "outline" : "destructive"
                         }
                       >
                         {task.status === "active" ? "Activa" : 
