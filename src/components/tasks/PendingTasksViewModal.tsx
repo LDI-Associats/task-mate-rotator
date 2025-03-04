@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,9 +63,9 @@ export const PendingTasksViewModal = ({
   const [reassignMap, setReassignMap] = useState<Record<number, number>>({});
   const queryClient = useQueryClient();
 
-  // Ordenar tareas por fecha de creación (del más reciente al más antiguo)
+  // Ordenar tareas por fecha de creación (del más antiguo al más reciente)
   const sortedTasks = [...tasks].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
   // Filtrar solo los agentes activos de tipo "Agente"
@@ -135,7 +134,7 @@ export const PendingTasksViewModal = ({
 
     try {
       setLoadingTaskId(taskId);
-      await reassignTask(taskId, selectedAgentId);
+      await reassignTask(taskId, selectedAgentId, true);
       
       const agentName = agents.find(a => a.id === selectedAgentId)?.nombre || 'desconocido';
       toast({
