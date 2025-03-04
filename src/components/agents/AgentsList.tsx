@@ -33,6 +33,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { List } from "lucide-react";
+import { PendingTasksViewModal } from "@/components/tasks/PendingTasksViewModal";
 
 interface ConfirmationDialogState {
   isOpen: boolean;
@@ -61,6 +62,13 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
     type: null
   });
   const [pendingDialogOpen, setPendingDialogOpen] = useState(false);
+  const [agentTasksModal, setAgentTasksModal] = useState<{
+    open: boolean;
+    agentId: number | null;
+  }>({
+    open: false,
+    agentId: null
+  });
 
   const agentsToDisplay = agents.filter(agent => agent.tipo_perfil === "Agente");
 
@@ -223,87 +231,23 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
     return taskAssignedToId === currentUser.id;
   };
 
+  const openAgentTasksModal = (agentId: number) => {
+    setAgentTasksModal({
+      open: true,
+      agentId
+    });
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Estado de Agentes</h2>
         
         {currentUser?.tipo_perfil === "Agente" && userPendingTasks.length > 0 && (
-          <Dialog open={pendingDialogOpen} onOpenChange={setPendingDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <List className="h-4 w-4 mr-2" />
-                Tareas Pendientes ({userPendingTasks.length})
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Tareas Pendientes</DialogTitle>
-                <DialogDescription>
-                  Gestione sus tareas pendientes en la cola
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 max-h-[400px] overflow-y-auto py-4">
-                {userPendingTasks.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()).map((task, index) => (
-                  <div key={task.id} className="border p-3 rounded-md space-y-2">
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="font-medium">{task.description}</p>
-                        <p className="text-sm text-gray-500">
-                          Orden: #{index + 1} (FIFO)
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          Creado: {new Date(task.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                      <Badge variant="secondary">Pendiente</Badge>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        onClick={() => {
-                          setPendingDialogOpen(false);
-                          handleCancelTask(task.id, currentUser.id);
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                      {task.assignedTo === currentUser.id && (
-                        <Select
-                          onValueChange={(value) => {
-                            setPendingDialogOpen(false);
-                            handleReassignTask(task.id, parseInt(value));
-                          }}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Reasignar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {agents
-                              .filter(a => isAgentInWorkingHours(a) && a.id !== currentUser.id && a.tipo_perfil === "Agente")
-                              .map(a => (
-                                <SelectItem 
-                                  key={a.id} 
-                                  value={a.id.toString()}
-                                >
-                                  {a.nombre} {!a.available ? "(Ocupado)" : ""}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setPendingDialogOpen(false)}>
-                  Cerrar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" onClick={() => setPendingDialogOpen(true)}>
+            <List className="h-4 w-4 mr-2" />
+            Tareas Pendientes ({userPendingTasks.length})
+          </Button>
         )}
       </div>
       
@@ -351,7 +295,7 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => setPendingDialogOpen(true)}
+                      onClick={() => openAgentTasksModal(agent.id)}
                       className="text-xs h-7 px-2"
                     >
                       Ver tareas
@@ -474,6 +418,28 @@ export const AgentsList = ({ agents, tasks, currentUser }: AgentsListProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PendingTasksViewModal
+        open={pendingDialogOpen}
+        onOpenChange={setPendingDialogOpen}
+        tasks={tasks}
+        agents={agents}
+        currentUser={currentUser}
+        showOnlyPending={true}
+      />
+
+      <PendingTasksViewModal
+        open={agentTasksModal.open}
+        onOpenChange={(open) => setAgentTasksModal({ ...agentTasksModal, open })}
+        tasks={tasks}
+        agents={agents}
+        currentUser={currentUser}
+        specificAgentId={agentTasksModal.agentId || undefined}
+        title={`Tareas de ${agents.find(a => a.id === agentTasksModal.agentId)?.nombre || 'Agente'}`}
+        description="Lista de tareas pendientes y activas del agente."
+        showOnlyPending={false}
+        onTaskAction={() => setAgentTasksModal({ ...agentTasksModal, open: false })}
+      />
     </div>
   );
 };

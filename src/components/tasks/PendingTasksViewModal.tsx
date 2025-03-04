@@ -42,6 +42,11 @@ interface PendingTasksViewModalProps {
   tasks: Task[];
   agents: Agent[];
   currentUser?: Agent;
+  title?: string;
+  description?: string;
+  showOnlyPending?: boolean;
+  specificAgentId?: number;
+  onTaskAction?: () => void;
 }
 
 export const PendingTasksViewModal = ({
@@ -49,7 +54,12 @@ export const PendingTasksViewModal = ({
   onOpenChange,
   tasks,
   agents,
-  currentUser
+  currentUser,
+  title = "Tareas Pendientes",
+  description = "Lista de tareas pendientes en cola de espera.",
+  showOnlyPending = true,
+  specificAgentId,
+  onTaskAction
 }: PendingTasksViewModalProps) => {
   const [loadingTaskId, setLoadingTaskId] = useState<number | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
@@ -76,6 +86,7 @@ export const PendingTasksViewModal = ({
       });
       
       queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+      if (onTaskAction) onTaskAction();
     } catch (error) {
       console.error('Error al completar la tarea:', error);
       toast({
@@ -99,6 +110,7 @@ export const PendingTasksViewModal = ({
       });
       
       queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+      if (onTaskAction) onTaskAction();
     } catch (error) {
       console.error('Error al cancelar la tarea:', error);
       toast({
@@ -122,6 +134,7 @@ export const PendingTasksViewModal = ({
       });
       
       queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
+      if (onTaskAction) onTaskAction();
       setSelectedAgentId(null);
     } catch (error) {
       console.error('Error al reasignar la tarea:', error);
@@ -139,18 +152,30 @@ export const PendingTasksViewModal = ({
   const isMesa = currentUser?.tipo_perfil === "Mesa";
   const isAgente = currentUser?.tipo_perfil === "Agente";
 
-  // Si es un agente, mostrar solo sus tareas pendientes
-  const displayTasks = isAgente 
-    ? sortedTasks.filter(task => task.assignedTo === currentUser?.id)
-    : sortedTasks;
+  // Filtrar las tareas según los criterios
+  let displayTasks = sortedTasks;
+  
+  // Si se especifica un agente, mostrar solo sus tareas
+  if (specificAgentId) {
+    displayTasks = displayTasks.filter(task => task.assignedTo === specificAgentId);
+  }
+  // Si es un agente y no se especifica un ID, mostrar solo sus tareas
+  else if (isAgente && !specificAgentId) {
+    displayTasks = displayTasks.filter(task => task.assignedTo === currentUser?.id);
+  }
+  
+  // Si showOnlyPending es true, mostrar solo tareas pendientes
+  if (showOnlyPending) {
+    displayTasks = displayTasks.filter(task => task.status === "pending");
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Tareas Pendientes</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            Lista de tareas pendientes en cola de espera. 
+            {description}
             {displayTasks.length === 0 && " No hay tareas pendientes actualmente."}
           </DialogDescription>
         </DialogHeader>
@@ -162,7 +187,7 @@ export const PendingTasksViewModal = ({
                 <TableRow>
                   <TableHead className="w-8 text-center"><Hash className="h-4 w-4 mx-auto" /></TableHead>
                   <TableHead className="w-[40%]">Descripción</TableHead>
-                  <TableHead>Asignada a</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -174,9 +199,17 @@ export const PendingTasksViewModal = ({
                     </TableCell>
                     <TableCell>{task.description}</TableCell>
                     <TableCell>
-                      {task.assignedTo 
-                        ? agents.find(a => a.id === task.assignedTo)?.nombre || "No encontrado"
-                        : "Sin asignar"}
+                      <Badge 
+                        variant={
+                          task.status === "active" ? "default" : 
+                          task.status === "pending" ? "secondary" : 
+                          task.status === "completed" ? "success" : "destructive"
+                        }
+                      >
+                        {task.status === "active" ? "Activa" : 
+                         task.status === "pending" ? "Pendiente" : 
+                         task.status === "completed" ? "Completada" : "Cancelada"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -184,7 +217,7 @@ export const PendingTasksViewModal = ({
                           variant="outline"
                           size="icon"
                           onClick={() => handleComplete(task.id)}
-                          disabled={loadingTaskId === task.id}
+                          disabled={loadingTaskId === task.id || task.status !== "active" && task.status !== "pending"}
                         >
                           <CheckSquare className="h-4 w-4 text-green-500" />
                         </Button>
@@ -192,25 +225,28 @@ export const PendingTasksViewModal = ({
                           variant="outline"
                           size="icon"
                           onClick={() => handleCancel(task.id)}
-                          disabled={loadingTaskId === task.id}
+                          disabled={loadingTaskId === task.id || task.status !== "active" && task.status !== "pending"}
                         >
                           <XSquare className="h-4 w-4 text-red-500" />
                         </Button>
                         
-                        {isMesa && (
+                        {(isMesa || isAgente) && (
                           <div className="flex items-center gap-2">
                             <Select
                               value={selectedAgentId?.toString() || ""}
                               onValueChange={(value) => setSelectedAgentId(parseInt(value))}
+                              disabled={task.status !== "active" && task.status !== "pending"}
                             >
                               <SelectTrigger className="w-[130px]">
                                 <SelectValue placeholder="Reasignar a..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {activeAgents.map((agent) => (
-                                  <SelectItem key={agent.id} value={agent.id.toString()}>
-                                    {agent.nombre}
-                                  </SelectItem>
+                                {activeAgents
+                                  .filter(agent => agent.id !== task.assignedTo)
+                                  .map((agent) => (
+                                    <SelectItem key={agent.id} value={agent.id.toString()}>
+                                      {agent.nombre}
+                                    </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -222,7 +258,7 @@ export const PendingTasksViewModal = ({
                                   handleReassign(task.id, selectedAgentId);
                                 }
                               }}
-                              disabled={!selectedAgentId || loadingTaskId === task.id}
+                              disabled={!selectedAgentId || loadingTaskId === task.id || task.status !== "active" && task.status !== "pending"}
                             >
                               <RefreshCw className={`h-4 w-4 text-blue-500 ${loadingTaskId === task.id ? 'animate-spin' : ''}`} />
                             </Button>
