@@ -20,7 +20,6 @@ import {
 import {
   CheckSquare,
   XSquare,
-  RefreshCw,
   Hash
 } from "lucide-react";
 import {
@@ -62,7 +61,7 @@ export const PendingTasksViewModal = ({
   onTaskAction
 }: PendingTasksViewModalProps) => {
   const [loadingTaskId, setLoadingTaskId] = useState<number | null>(null);
-  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [reassignMap, setReassignMap] = useState<Record<number, number>>({});
   const queryClient = useQueryClient();
 
   // Ordenar tareas por fecha de creación (del más reciente al más antiguo)
@@ -123,19 +122,36 @@ export const PendingTasksViewModal = ({
     }
   };
 
-  const handleReassign = async (taskId: number, agentId: number) => {
+  const handleReassign = async (taskId: number) => {
+    const selectedAgentId = reassignMap[taskId];
+    if (!selectedAgentId) {
+      toast({
+        title: "Error",
+        description: "Por favor seleccione un agente para reasignar la tarea.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setLoadingTaskId(taskId);
-      await reassignTask(taskId, agentId);
+      await reassignTask(taskId, selectedAgentId);
       
+      const agentName = agents.find(a => a.id === selectedAgentId)?.nombre || 'desconocido';
       toast({
         title: "Tarea reasignada",
-        description: `La tarea ha sido reasignada al agente ${agents.find(a => a.id === agentId)?.nombre}.`,
+        description: `La tarea ha sido reasignada al agente ${agentName}.`,
       });
       
       queryClient.invalidateQueries({ queryKey: ['agents-and-tasks'] });
       if (onTaskAction) onTaskAction();
-      setSelectedAgentId(null);
+      
+      // Limpiar el valor del mapa de reasignación para esta tarea
+      setReassignMap(prev => {
+        const newMap = {...prev};
+        delete newMap[taskId];
+        return newMap;
+      });
     } catch (error) {
       console.error('Error al reasignar la tarea:', error);
       toast({
@@ -231,8 +247,13 @@ export const PendingTasksViewModal = ({
                         {(isMesa || isAgente) && (
                           <div className="flex items-center gap-2">
                             <Select
-                              value={selectedAgentId?.toString() || ""}
-                              onValueChange={(value) => setSelectedAgentId(parseInt(value))}
+                              value={reassignMap[task.id]?.toString() || ""}
+                              onValueChange={(value) => {
+                                setReassignMap(prev => ({
+                                  ...prev,
+                                  [task.id]: parseInt(value)
+                                }));
+                              }}
                               disabled={task.status !== "active" && task.status !== "pending"}
                             >
                               <SelectTrigger className="w-[130px]">
@@ -250,15 +271,12 @@ export const PendingTasksViewModal = ({
                             </Select>
                             <Button
                               variant="outline"
-                              size="icon"
-                              onClick={() => {
-                                if (selectedAgentId) {
-                                  handleReassign(task.id, selectedAgentId);
-                                }
-                              }}
-                              disabled={!selectedAgentId || loadingTaskId === task.id || task.status !== "active" && task.status !== "pending"}
+                              onClick={() => handleReassign(task.id)}
+                              disabled={!reassignMap[task.id] || loadingTaskId === task.id || 
+                                      (task.status !== "active" && task.status !== "pending")}
+                              className="px-3"
                             >
-                              <RefreshCw className={`h-4 w-4 text-blue-500 ${loadingTaskId === task.id ? 'animate-spin' : ''}`} />
+                              Reasignar
                             </Button>
                           </div>
                         )}
